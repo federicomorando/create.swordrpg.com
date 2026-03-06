@@ -133,7 +133,7 @@ function buildContext(actor) {
   // Handle items as either Array or Foundry Collection
   const items = Array.isArray(actor.items) ? actor.items : Array.from(actor.items);
 
-  const weapons = items.filter((i) => i.type === "weapon");
+  const weapons = items.filter((i) => i.type === "weapon" || i.type === "shield");
   const armors = items.filter((i) => i.type === "armor");
   const gear = items.filter((i) => i.type === "gear");
 

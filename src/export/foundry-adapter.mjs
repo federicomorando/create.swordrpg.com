@@ -81,10 +81,10 @@ function cartToItems(cart, { hasMilitare = false } = {}) {
     const source = lookup[type]?.get(rawId);
     if (!source) continue;
 
-    if (type === "weapon" || type === "shield") {
+    if (type === "weapon") {
       const pregi = Array.isArray(source.pregi) ? [...source.pregi] : [];
       let quality = "normale";
-      if (hasMilitare && type === "weapon") {
+      if (hasMilitare) {
         quality = "buona";
         if (!pregi.includes("impugnatura_sicura")) pregi.push("impugnatura_sicura");
       }
@@ -101,6 +101,25 @@ function cartToItems(cart, { hasMilitare = false } = {}) {
           misura: source.misura,
           costDenari: source.costDenari,
           quality
+        }
+      });
+      continue;
+    }
+
+    if (type === "shield") {
+      out.push({
+        type: "shield",
+        name: source.label,
+        system: {
+          quantity: qty,
+          weight: source.weight,
+          pregi: Array.isArray(source.pregi) ? [...source.pregi] : [],
+          damageValue: source.damageValue,
+          damageType: source.damageType,
+          parryModifier: source.parryModifier,
+          misura: source.misura,
+          costDenari: source.costDenari,
+          quality: "normale"
         }
       });
       continue;
@@ -150,7 +169,7 @@ function cartToItems(cart, { hasMilitare = false } = {}) {
 function applyCimelioQuality(items, cimelioNote = "") {
   if (!Array.isArray(items) || items.length === 0) return;
   const note = String(cimelioNote || "").trim().toLowerCase();
-  const eligible = items.filter((i) => ["weapon", "armor", "gear"].includes(i.type));
+  const eligible = items.filter((i) => ["weapon", "shield", "armor", "gear"].includes(i.type));
   if (eligible.length === 0) return;
   let target = null;
   if (note) {
