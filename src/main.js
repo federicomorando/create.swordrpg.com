@@ -93,6 +93,7 @@ function defaultState() {
     cultureTrait2: "",
     trait1Skill: "",
     trait2Skill: "",
+    corteseAdvSkill: "",
     skills: {
       mestiere: [],
       free: [],
@@ -134,6 +135,7 @@ function loadState() {
 function normalizeState(rawState) {
   const s = rawState ?? defaultState();
   if (!s.name) s.name = "Avventuriero";
+  if (typeof s.corteseAdvSkill !== "string") s.corteseAdvSkill = "";
   if (!s.retaggio) s.retaggio = { tentazione: "", events: [] };
   if (!Array.isArray(s.retaggio.events)) s.retaggio.events = [];
   if (!Array.isArray(s.retaggio.espGrade3)) s.retaggio.espGrade3 = [""];
@@ -354,8 +356,10 @@ function stepValidation(step = state.step) {
     1: { ok: true, msg: "" },
     2: { ok: charPointsUsed() === 54, msg: "Servono esattamente 54 punti caratteristiche." },
     3: {
-      ok: Boolean(state.cultureTrait1 && state.cultureTrait2 && state.trait1Skill && state.trait2Skill),
-      msg: "Seleziona due tratti cultura e un dado extra per ciascuno."
+      ok:
+        Boolean(state.cultureTrait1 && state.cultureTrait2 && state.trait1Skill && state.trait2Skill) &&
+        (!(state.cultureTrait1 === "cortese" || state.cultureTrait2 === "cortese") || Boolean(state.corteseAdvSkill)),
+      msg: "Seleziona due tratti cultura e un dado extra per ciascuno. Se hai Cortese, scegli anche il dado bonus Cortese."
     },
     4: { ok: true, msg: "" },
     5: {
@@ -588,6 +592,8 @@ function renderStepContent(allowedValori, allSkills) {
     const trait2Skills = state.cultureTrait2 && CULTURE_DEFS[state.cultureTrait2].skillChoices
       ? CULTURE_DEFS[state.cultureTrait2].skillChoices
       : allSkills;
+    const hasCortese = state.cultureTrait1 === "cortese" || state.cultureTrait2 === "cortese";
+    const corteseOptions = CULTURE_DEFS.cortese?.advantagePickFrom ?? [];
 
     return `
       <h2>Cultura</h2>
@@ -612,6 +618,20 @@ function renderStepContent(allowedValori, allSkills) {
           </select>
         </label>
       </div>
+      ${
+        hasCortese
+          ? `
+          <label>Dado bonus Cortese
+            <select data-change="set-cortese-adv-skill">
+              <option value="">-</option>
+              ${corteseOptions
+                .map((s) => `<option value="${s}" ${state.corteseAdvSkill === s ? "selected" : ""}>${SKILL_LABELS[s] ?? s}</option>`)
+                .join("")}
+            </select>
+          </label>
+        `
+          : ""
+      }
       <p>Valori consentiti: ${Array.from(allowedValori).map((k) => VALORE_LABELS[k]).join(", ")}</p>
     `;
   }
@@ -1086,16 +1106,19 @@ function onChange(event) {
     state.cultureTrait1 = value;
     if (state.cultureTrait1 === state.cultureTrait2) state.cultureTrait2 = "";
     state.trait1Skill = "";
+    if (!(state.cultureTrait1 === "cortese" || state.cultureTrait2 === "cortese")) state.corteseAdvSkill = "";
     recomputeRolledWealth();
   }
   if (action === "set-trait-2") {
     state.cultureTrait2 = value;
     if (state.cultureTrait2 === state.cultureTrait1) state.cultureTrait1 = "";
     state.trait2Skill = "";
+    if (!(state.cultureTrait1 === "cortese" || state.cultureTrait2 === "cortese")) state.corteseAdvSkill = "";
     recomputeRolledWealth();
   }
   if (action === "set-trait-1-skill") state.trait1Skill = value;
   if (action === "set-trait-2-skill") state.trait2Skill = value;
+  if (action === "set-cortese-adv-skill") state.corteseAdvSkill = value;
   if (action === "set-tentazione") {
     state.retaggio.tentazione = value;
     if (state.retaggio.events.length > retaggioAvailable()) {
@@ -1163,6 +1186,7 @@ async function onImportFile(event) {
     state.cultureTrait2 = actor.system.culture?.trait2 || "";
     state.trait1Skill = "";
     state.trait2Skill = "";
+    state.corteseAdvSkill = "";
 
     for (const k of VALORI) {
       const v = Number(actor.system.valori?.[k]);

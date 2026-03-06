@@ -23,9 +23,14 @@ const EVENT_LABELS = {
 const EVENT_DEFS = {
   apprendistato: { effect: "extraDice", modes: { single: { extraDiceAmount: 2 }, split: { extraDiceAmount: 1 } } },
   addestramento_marziale: { effect: "extraDice", extraDiceAmount: 1 },
+  affinita_animale: { effect: "flag" },
   antico_sapere: { effect: "extraDice", extraDiceAmount: 1 },
+  cimelio: { effect: "flag" },
+  conoscenze: { effect: "flag" },
   dedizione: { effect: "extraDice", extraDiceAmount: 1 },
+  indomito: { effect: "flag" },
   fascino: { effect: "extraDice", extraDiceAmount: 1 },
+  legame: { effect: "flag" },
   talento_naturale: { effect: "extraDice", extraDiceAmount: 1 },
   nomea: { effect: "fama_bonus", bonus: 1 },
   percorso_spirituale: { effect: "spirito_bonus", bonus: 3 },
@@ -61,7 +66,7 @@ function denariToMoney(total) {
   return { lire, soldi, denari };
 }
 
-function cartToItems(cart) {
+function cartToItems(cart, { hasMilitare = false } = {}) {
   const out = [];
   const lookup = {
     weapon: new Map(WEAPONS.map((x) => [x.weaponId, x])),
@@ -77,35 +82,49 @@ function cartToItems(cart) {
     if (!source) continue;
 
     if (type === "weapon" || type === "shield") {
+      const pregi = Array.isArray(source.pregi) ? [...source.pregi] : [];
+      let quality = "normale";
+      if (hasMilitare && type === "weapon") {
+        quality = "buona";
+        if (!pregi.includes("impugnatura_sicura")) pregi.push("impugnatura_sicura");
+      }
       out.push({
         type: "weapon",
         name: source.label,
         system: {
           quantity: qty,
           weight: source.weight,
-          pregi: source.pregi,
+          pregi,
           damageValue: source.damageValue,
           damageType: source.damageType,
           parryModifier: source.parryModifier,
           misura: source.misura,
-          costDenari: source.costDenari
+          costDenari: source.costDenari,
+          quality
         }
       });
       continue;
     }
 
     if (type === "armor") {
+      const pregi = Array.isArray(source.pregi) ? [...source.pregi] : [];
+      let quality = "normale";
+      if (hasMilitare) {
+        quality = "buona";
+        if (!pregi.includes("leggera")) pregi.push("leggera");
+      }
       out.push({
         type: "armor",
         name: source.label,
         system: {
           quantity: qty,
           weight: source.weight,
-          pregi: source.pregi,
+          pregi,
           protezione: source.protezione,
           robustezza: source.robustezza,
           robustezzaCurrent: source.robustezza,
-          costDenari: source.costDenari
+          costDenari: source.costDenari,
+          quality
         }
       });
       continue;
@@ -119,12 +138,30 @@ function cartToItems(cart) {
         weight: source.weight,
         pregi: [],
         description: source.description ?? "",
-        costDenari: source.costDenari
+        costDenari: source.costDenari,
+        quality: "normale"
       }
     });
   }
 
   return out;
+}
+
+function applyCimelioQuality(items, cimelioNote = "") {
+  if (!Array.isArray(items) || items.length === 0) return;
+  const note = String(cimelioNote || "").trim().toLowerCase();
+  const eligible = items.filter((i) => ["weapon", "armor", "gear"].includes(i.type));
+  if (eligible.length === 0) return;
+  let target = null;
+  if (note) {
+    target = eligible.find((i) => {
+      const name = String(i.name || "").toLowerCase();
+      const skillBonus = String(i.system?.skillBonusSkillId || "").toLowerCase();
+      return name.includes(note) || skillBonus.includes(note);
+    });
+  }
+  if (!target) target = eligible[0];
+  if (target.system) target.system.quality = "ottima";
 }
 
 export function stateToFoundryActor(state) {
@@ -166,6 +203,13 @@ export function stateToFoundryActor(state) {
 
   for (const ev of eventsRaw) {
     if (!ev || typeof ev !== "object" || !ev.type) continue;
+    if (ev.type === "indomito") retaggioFlags.indomito = true;
+    if (ev.type === "affinita_animale") retaggioFlags.affinitaAnimale = true;
+    if (ev.type === "conoscenze") retaggioFlags.conoscenze = true;
+    if (ev.type === "nomea") retaggioFlags.nomea = true;
+    if (ev.type === "legame") retaggioFlags.legame = ev.note || "Legame";
+    if (ev.type === "cimelio") retaggioFlags.cimelio = ev.note || "Cimelio";
+
     const def = EVENT_DEFS[ev.type];
     if (!def) continue;
     if (def.effect === "fama_bonus") famaBonus += def.bonus || 0;
@@ -174,13 +218,6 @@ export function stateToFoundryActor(state) {
       if (ev.valoreKey && ev.valoreKey in valueUpdates) valueUpdates[ev.valoreKey] = (valueUpdates[ev.valoreKey] || 0) + 1;
     }
     if (def.effect === "riflessi_bonus") riflessiBonus += def.bonus || 0;
-
-    if (ev.type === "indomito") retaggioFlags.indomito = true;
-    if (ev.type === "affinita_animale") retaggioFlags.affinitaAnimale = true;
-    if (ev.type === "conoscenze") retaggioFlags.conoscenze = true;
-    if (ev.type === "nomea") retaggioFlags.nomea = true;
-    if (ev.type === "legame") retaggioFlags.legame = ev.note || "Legame";
-    if (ev.type === "cimelio") retaggioFlags.cimelio = ev.note || "Cimelio";
   }
 
   const anticaBonus = hasCultureTrait(state, "antica") ? 1 : 0;
@@ -207,7 +244,11 @@ export function stateToFoundryActor(state) {
   const ferMax = ec.fortitudo + mod(ec.fortitudo) + (prog.skills.forza?.grade || 0) + (prog.talentResourceBonuses?.ferite || 0);
   const rifMax = ec.prudentia + mod(ec.celeritas) + riflessiBonus + (prog.talentResourceBonuses?.riflessi || 0);
 
-  const spent = cartToItems(state.equipment.cart || []).reduce((sum, item) => {
+  const hasMilitare = hasCultureTrait(state, "militare");
+  const items = cartToItems(state.equipment.cart || [], { hasMilitare });
+  if (retaggioFlags.cimelio) applyCimelioQuality(items, retaggioFlags.cimelio);
+
+  const spent = items.reduce((sum, item) => {
     const qty = Number(item.system?.quantity ?? 1);
     const unit = Number(item.system?.costDenari ?? 0);
     return sum + qty * unit;
@@ -257,7 +298,7 @@ export function stateToFoundryActor(state) {
         trait1: state.cultureTrait1 || "",
         trait2: state.cultureTrait2 || ""
       },
-      languages: [],
+      languages: hasCultureTrait(state, "meticcio") ? ["Lingua aggiuntiva (Meticcio)"] : [],
       retaggio: {
         total: retaggioTotal,
         notes: eventsText.join("; "),
@@ -276,7 +317,7 @@ export function stateToFoundryActor(state) {
       tentazione: state.retaggio.tentazione || "",
       money: denariToMoney(remainingDenari)
     },
-    items: cartToItems(state.equipment.cart || [])
+    items
   };
 }
 

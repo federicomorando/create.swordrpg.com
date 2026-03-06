@@ -68,6 +68,7 @@ export function computeCreationSkillState(state) {
 
   if (state.trait1Skill && skills[state.trait1Skill]) skills[state.trait1Skill].extraDice += 1;
   if (state.trait2Skill && skills[state.trait2Skill]) skills[state.trait2Skill].extraDice += 1;
+  if (state.corteseAdvSkill && skills[state.corteseAdvSkill]) skills[state.corteseAdvSkill].extraDice += 1;
 
   const hasTrait = (id) => state.cultureTrait1 === id || state.cultureTrait2 === id;
   if (hasTrait("meticcio")) {
