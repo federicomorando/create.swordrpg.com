@@ -39,7 +39,8 @@ This project runs on GitHub Pages (no backend). Some creation steps need explici
   - `3 + mod(Gratia) + Tentazione + Intraprendente - costo Ceto`
 
 8. `Equipaggiamento`
-- Require wealth roll before advancing.
+- Initial wealth is auto-rolled when entering Step 8.
+- Manual reroll remains available via the step action button.
 - Block over-budget purchases via validation.
 
 9. `Progressione` (PE + Talenti)

@@ -15,6 +15,9 @@ Date: 2026-03-06
 - Foundry-aligned Talenti logic reused in browser (`src/lib/talents.mjs` + `src/lib/progression.mjs`).
 - JSON/PDF exports updated to include progression results (`system.pe`, upgraded skills, talents/effects).
 - Header action added for `Import JSON` to continue editing existing characters (especially PE/Talenti).
+- Cultura/Retaggio parity fixes: `Cortese` bonus pick, event flags, `Militare`/`Cimelio` item quality effects, `Meticcio` language marker.
+- Initial wealth now auto-rolls when entering `Equipaggiamento` (manual reroll still available).
+- UI stability improvements: fixed-width progression controls and better mobile wrapping for rows/header actions.
 
 ## Known Notes
 - GitHub Pages `Enforce HTTPS` is still false because GitHub certificate provisioning was not ready at check time.
