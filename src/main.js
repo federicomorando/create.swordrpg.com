@@ -728,7 +728,7 @@ function renderStepContent(allowedValori, allSkills) {
           .map((m) => `<button class="chip ${state.skills.mestiere.includes(m.id) ? "selected" : ""}" data-action="toggle-mestiere" data-skill="${m.id}">${SKILL_LABELS[m.id] ?? m.id} (${m.cost})</button>`)
           .join("")}
       </div>
-      <p>Abilita libere (costo variabile): ${usedFree}/${freeTotal}</p>
+      <p class="section-divider">Abilita libere (costo variabile): ${usedFree}/${freeTotal}</p>
       <div class="chips">
         ${freeOptions
           .map((opt) => `<button class="chip ${state.skills.free.includes(opt.id) ? "selected" : ""}" data-action="toggle-free" data-skill="${opt.id}">${SKILL_LABELS[opt.id] ?? opt.id} (${opt.cost})</button>`)

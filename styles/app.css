@@ -339,6 +339,14 @@ button {
   color: var(--muted);
 }
 
+.section-divider {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 2px solid var(--line);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
 button:disabled {
   opacity: 1;
   cursor: not-allowed;
@@ -355,6 +363,10 @@ button:disabled {
 
 .row.row-disabled strong,
 .row.row-disabled em {
+  color: #8b8b8b;
+}
+
+.row.row-disabled > span:first-child {
   color: #8b8b8b;
 }
 
