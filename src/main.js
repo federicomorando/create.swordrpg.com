@@ -534,19 +534,22 @@ function render() {
           </div>
           <div class="header-actions">
             <details class="actions-menu">
-              <summary aria-label="Apri menu azioni">Menu</summary>
+              <summary aria-label="Apri menu azioni">
+                <span class="menu-trigger-icon" aria-hidden="true">☰</span>
+                <span class="menu-trigger-label">Azioni</span>
+              </summary>
               <div class="actions-menu-list">
-                <button data-action="export-json">Export JSON (Foundry)</button>
-                <button data-action="export-pdf">Export PDF</button>
-                <button data-action="import-json">Import JSON</button>
-                <button data-action="reset">Nuovo personaggio</button>
+                <button data-action="export-json"><span class="action-icon" aria-hidden="true">⇩</span><span>Export JSON (Foundry)</span></button>
+                <button data-action="export-pdf"><span class="action-icon" aria-hidden="true">⎙</span><span>Export PDF</span></button>
+                <button data-action="import-json"><span class="action-icon" aria-hidden="true">⇧</span><span>Import JSON</span></button>
+                <button data-action="reset"><span class="action-icon" aria-hidden="true">✦</span><span>Nuovo personaggio</span></button>
               </div>
             </details>
             <div class="actions-inline">
-              <button data-action="export-json">Export JSON (Foundry)</button>
-              <button data-action="export-pdf">Export PDF</button>
-              <button data-action="import-json">Import JSON</button>
-              <button data-action="reset">Nuovo personaggio</button>
+              <button data-action="export-json"><span class="action-icon" aria-hidden="true">⇩</span><span>Export JSON (Foundry)</span></button>
+              <button data-action="export-pdf"><span class="action-icon" aria-hidden="true">⎙</span><span>Export PDF</span></button>
+              <button data-action="import-json"><span class="action-icon" aria-hidden="true">⇧</span><span>Import JSON</span></button>
+              <button data-action="reset"><span class="action-icon" aria-hidden="true">✦</span><span>Nuovo personaggio</span></button>
             </div>
             <input type="file" accept=\"application/json,.json\" data-import-file style=\"display:none\" />
           </div>

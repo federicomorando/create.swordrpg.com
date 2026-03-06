@@ -87,15 +87,22 @@ p {
   background: #fff;
   cursor: pointer;
   user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .actions-menu summary::-webkit-details-marker {
   display: none;
 }
 
-.actions-menu summary::after {
-  content: " \\/";
-  color: var(--muted);
+.menu-trigger-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.menu-trigger-label {
+  font-weight: 600;
 }
 
 .actions-menu-list {
@@ -110,6 +117,19 @@ p {
 
 .actions-inline {
   display: none;
+}
+
+.actions-menu-list button,
+.actions-inline button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-icon {
+  width: 1.1rem;
+  text-align: center;
+  opacity: 0.85;
 }
 
 .name-row {
