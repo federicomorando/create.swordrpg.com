@@ -777,6 +777,7 @@ function renderStepContent(allowedValori, allSkills) {
   }
 
   if (state.step === 6) {
+    const hasValoriLimitations = VALORI.some((v) => !allowedValori.has(v));
     return `
       <h2>Valori</h2>
       <p>Punti assegnati: ${totalValoriPoints()}/3</p>
@@ -794,7 +795,11 @@ function renderStepContent(allowedValori, allSkills) {
         `
         ).join("")}
       </div>
-      <p class="note">I valori disabilitati non sono previsti dai tratti culturali scelti.</p>
+      ${
+        hasValoriLimitations
+          ? `<p class="note">I valori disabilitati non sono previsti dai tratti culturali scelti.</p>`
+          : ""
+      }
     `;
   }
 
