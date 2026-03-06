@@ -238,6 +238,16 @@ function recomputeRolledWealth() {
   state.equipment.wealth = state.equipment.wealthBase * currentWealthMultiplier();
 }
 
+function rollInitialWealth() {
+  const cfg = STARTING_WEALTH[state.ceto];
+  let total = 0;
+  for (let i = 0; i < cfg.dice; i++) total += Math.floor(Math.random() * 6) + 1;
+  total = total * cfg.multiplier * cfg.inDenari;
+  state.equipment.wealthBase = total;
+  state.equipment.wealthRolled = true;
+  state.equipment.wealth = total * currentWealthMultiplier();
+}
+
 function syncRetaggioState() {
   const hasEsperienza = state.retaggio.events.some((ev) => ev.type === "esperienza");
   if (!hasEsperienza) {
@@ -1029,13 +1039,7 @@ async function onAction(event) {
   }
 
   if (action === "roll-wealth") {
-    const cfg = STARTING_WEALTH[state.ceto];
-    let total = 0;
-    for (let i = 0; i < cfg.dice; i++) total += Math.floor(Math.random() * 6) + 1;
-    total = total * cfg.multiplier * cfg.inDenari;
-    state.equipment.wealthBase = total;
-    state.equipment.wealthRolled = true;
-    state.equipment.wealth = total * currentWealthMultiplier();
+    rollInitialWealth();
   }
 
   if (action === "buy-item") {
@@ -1093,6 +1097,10 @@ async function onAction(event) {
     const fresh = defaultState();
     Object.keys(state).forEach((k) => delete state[k]);
     Object.assign(state, fresh);
+  }
+
+  if (state.step === 8 && !state.equipment.wealthRolled) {
+    rollInitialWealth();
   }
 
   render();
