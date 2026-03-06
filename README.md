@@ -28,4 +28,5 @@ Use the drift checker to keep parity with Foundry:
 
 Detailed guide: `docs/FOUNDRY_SYNC.md`.
 Step-by-step constraints: `docs/STEP_CONSTRAINTS.md`.
+Cache busting guide: `docs/CACHE_BUSTING.md`.
 Release notes: `docs/RELEASE_1.5.md` (historical: `docs/RELEASE_1.0.md`).
