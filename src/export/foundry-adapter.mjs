@@ -1,11 +1,6 @@
 import { allSkillIds } from "../lib/actor-core.mjs";
+import { computeCreationSkillState, computeProgressionSummary } from "../lib/progression.mjs";
 import { WEAPONS, SHIELDS, ARMOR, GEAR } from "../lib/equipment.mjs";
-
-function skillSkeleton() {
-  return Object.fromEntries(
-    allSkillIds().map((id) => [id, { grade: 0, baseGrade: 0, isMestiere: false, hasFocus: false, focusCount: 0, extraDice: 0 }])
-  );
-}
 
 const EVENT_LABELS = {
   addestramento_marziale: "Addestramento marziale",
@@ -26,28 +21,18 @@ const EVENT_LABELS = {
 };
 
 const EVENT_DEFS = {
+  apprendistato: { effect: "extraDice", modes: { single: { extraDiceAmount: 2 }, split: { extraDiceAmount: 1 } } },
   addestramento_marziale: { effect: "extraDice", extraDiceAmount: 1 },
-  apprendistato: {
-    effect: "extraDice",
-    modes: {
-      single: { extraDiceAmount: 2 },
-      split: { extraDiceAmount: 1 }
-    }
-  },
-  affinita_animale: { effect: "flag" },
   antico_sapere: { effect: "extraDice", extraDiceAmount: 1 },
-  cimelio: { effect: "flag" },
-  conoscenze: { effect: "flag" },
   dedizione: { effect: "extraDice", extraDiceAmount: 1 },
-  esperienza: { effect: "training" },
   fascino: { effect: "extraDice", extraDiceAmount: 1 },
-  indomito: { effect: "flag" },
-  istinto: { effect: "riflessi_bonus", bonus: 1 },
-  legame: { effect: "flag" },
+  talento_naturale: { effect: "extraDice", extraDiceAmount: 1 },
   nomea: { effect: "fama_bonus", bonus: 1 },
-  percorso_spirituale: { effect: "spirito_bonus", bonus: 3, valorePickRequired: true },
-  talento_naturale: { effect: "extraDice", extraDiceAmount: 1 }
+  percorso_spirituale: { effect: "spirito_bonus", bonus: 3 },
+  istinto: { effect: "riflessi_bonus", bonus: 1 }
 };
+
+const CETO_FAMA = { umile: 0, popolano: 1, borghese: 2, nobile: 3 };
 
 function formatEvent(eventObj) {
   if (!eventObj || typeof eventObj !== "object") return "";
@@ -91,7 +76,7 @@ function cartToItems(cart) {
     const source = lookup[type]?.get(rawId);
     if (!source) continue;
 
-    if (type === "weapon") {
+    if (type === "weapon" || type === "shield") {
       out.push({
         type: "weapon",
         name: source.label,
@@ -102,24 +87,8 @@ function cartToItems(cart) {
           damageValue: source.damageValue,
           damageType: source.damageType,
           parryModifier: source.parryModifier,
-          misura: source.misura
-        }
-      });
-      continue;
-    }
-
-    if (type === "shield") {
-      out.push({
-        type: "weapon",
-        name: source.label,
-        system: {
-          quantity: qty,
-          weight: source.weight,
-          pregi: source.pregi,
-          damageValue: source.damageValue,
-          damageType: source.damageType,
-          parryModifier: source.parryModifier,
-          misura: source.misura
+          misura: source.misura,
+          costDenari: source.costDenari
         }
       });
       continue;
@@ -135,7 +104,8 @@ function cartToItems(cart) {
           pregi: source.pregi,
           protezione: source.protezione,
           robustezza: source.robustezza,
-          robustezzaCurrent: source.robustezza
+          robustezzaCurrent: source.robustezza,
+          costDenari: source.costDenari
         }
       });
       continue;
@@ -148,7 +118,8 @@ function cartToItems(cart) {
         quantity: qty,
         weight: source.weight,
         pregi: [],
-        description: source.description ?? ""
+        description: source.description ?? "",
+        costDenari: source.costDenari
       }
     });
   }
@@ -158,15 +129,32 @@ function cartToItems(cart) {
 
 export function stateToFoundryActor(state) {
   const eventsRaw = state.retaggio.events || [];
-  const eventsText = eventsRaw
-    .map((ev) => (typeof ev === "string" ? ev : formatEvent(ev)))
-    .filter(Boolean);
+  const eventsText = eventsRaw.map((ev) => (typeof ev === "string" ? ev : formatEvent(ev))).filter(Boolean);
 
-  const skills = skillSkeleton();
-  const valueUpdates = { ...(state.valori || {}) };
+  const creationSkills = computeCreationSkillState(state);
+  const baseGrades = {};
+  for (const id of allSkillIds()) {
+    baseGrades[id] =
+      state.progression?.source === "import"
+        ? Number(state.progression.baseSkillGrades?.[id] ?? creationSkills[id]?.baseGrade ?? 0)
+        : Number(creationSkills[id]?.baseGrade ?? 0);
+  }
+
+  const currentGrades = {};
+  for (const id of allSkillIds()) {
+    currentGrades[id] = Number(state.progression?.currentSkillGrades?.[id] ?? baseGrades[id]);
+  }
+
+  const baseSkillState = Object.fromEntries(
+    Object.entries(creationSkills).map(([id, data]) => [id, { ...data, baseGrade: baseGrades[id] ?? data.baseGrade }])
+  );
+
+  const prog = computeProgressionSummary(baseSkillState, currentGrades, Number(state.progression?.peTotal ?? 0));
+
   let famaBonus = 0;
   let spiritoBonus = 0;
   let riflessiBonus = 0;
+  const valueUpdates = { ...(state.valori || {}) };
   const retaggioFlags = {
     indomito: false,
     affinitaAnimale: false,
@@ -176,68 +164,10 @@ export function stateToFoundryActor(state) {
     cimelio: ""
   };
 
-  for (const id of state.skills.mestiere ?? []) {
-    if (!skills[id]) continue;
-    skills[id].grade = Math.max(skills[id].grade, 1);
-    skills[id].isMestiere = true;
-  }
-
-  for (const id of state.skills.free ?? []) {
-    if (!skills[id]) continue;
-    skills[id].grade = skills[id].grade >= 1 ? 2 : 1;
-  }
-
-  for (const id of state.skills.grade2 ?? []) {
-    if (!id || !skills[id]) continue;
-    skills[id].grade = Math.max(skills[id].grade, 2);
-  }
-  for (const id of state.skills.grade3 ?? []) {
-    if (!id || !skills[id]) continue;
-    skills[id].grade = Math.max(skills[id].grade, 3);
-  }
-
-  if (state.trait1Skill && skills[state.trait1Skill]) skills[state.trait1Skill].extraDice += 1;
-  if (state.trait2Skill && skills[state.trait2Skill]) skills[state.trait2Skill].extraDice += 1;
-
-  // Culture effects that alter extraDice/bonuses.
-  if (hasCultureTrait(state, "meticcio")) {
-    if (skills.storia_e_leggende) skills.storia_e_leggende.extraDice += 1;
-    if (skills.usi_e_costumi) skills.usi_e_costumi.extraDice += 1;
-  }
-  if (hasCultureTrait(state, "rurale")) {
-    if (skills.sopravvivenza) skills.sopravvivenza.extraDice += 1;
-    if (skills.usi_e_costumi) skills.usi_e_costumi.extraDice += 1;
-  }
-  if (hasCultureTrait(state, "tenace") && skills.forza) {
-    skills.forza.extraDice += 1;
-  }
-
-  // Retaggio event effects.
   for (const ev of eventsRaw) {
     if (!ev || typeof ev !== "object" || !ev.type) continue;
     const def = EVENT_DEFS[ev.type];
     if (!def) continue;
-
-    if (def.effect === "extraDice") {
-      const amount = def.modes ? (def.modes[ev.mode]?.extraDiceAmount ?? 0) : (def.extraDiceAmount ?? 0);
-      for (const skillId of ev.picks || []) {
-        if (skills[skillId]) skills[skillId].extraDice += amount;
-      }
-    }
-
-    if (def.effect === "training") {
-      for (const skillId of state.retaggio.espGrade3 || []) {
-        if (!skillId || !skills[skillId]) continue;
-        skills[skillId].grade = Math.max(skills[skillId].grade, 3);
-        skills[skillId].baseGrade = Math.max(skills[skillId].baseGrade, 3);
-      }
-      for (const skillId of state.retaggio.espGrade2 || []) {
-        if (!skillId || !skills[skillId]) continue;
-        skills[skillId].grade = Math.max(skills[skillId].grade, 2);
-        skills[skillId].baseGrade = Math.max(skills[skillId].baseGrade, 2);
-      }
-    }
-
     if (def.effect === "fama_bonus") famaBonus += def.bonus || 0;
     if (def.effect === "spirito_bonus") {
       spiritoBonus += def.bonus || 0;
@@ -253,35 +183,29 @@ export function stateToFoundryActor(state) {
     if (ev.type === "cimelio") retaggioFlags.cimelio = ev.note || "Cimelio";
   }
 
-  for (const base of ["volonta", "agilita", "carisma", "forza", "ragionamento", "percezione"]) {
-    if (skills[base]) {
-      skills[base].grade = Math.max(skills[base].grade, 1);
-      skills[base].baseGrade = 1;
-    }
-  }
-  for (const id of Object.keys(skills)) {
-    skills[id].baseGrade = skills[id].grade;
-  }
-
-  const retaggioTotal = Math.max(
-    0,
-    3 + mod(state.chars.gratia) + (state.retaggio.tentazione ? 1 : 0) + (hasCultureTrait(state, "intraprendente") ? 1 : 0)
-  );
   const anticaBonus = hasCultureTrait(state, "antica") ? 1 : 0;
   const spiritualeBonus = hasCultureTrait(state, "spirituale") ? 4 : 0;
-
-  const spirMax =
-    state.chars.audacia + mod(state.chars.audacia) + (skills.volonta?.grade || 0) + spiritoBonus + anticaBonus + spiritualeBonus;
-  const fatMax = state.chars.fortitudo + state.chars.audacia;
-  const ferMax = state.chars.fortitudo + mod(state.chars.fortitudo) + (skills.forza?.grade || 0);
-  const rifMax = state.chars.prudentia + mod(state.chars.celeritas) + riflessiBonus;
-
-  const resources = {
-    riflessi: { value: rifMax, max: rifMax },
-    spirito: { value: spirMax, max: spirMax },
-    fatica: { value: fatMax, max: fatMax },
-    ferite: { value: ferMax, max: ferMax }
+  const talentCharBonuses = prog.talentCharBonuses || {};
+  const ec = {
+    fortitudo: state.chars.fortitudo + (talentCharBonuses.fortitudo || 0),
+    celeritas: state.chars.celeritas + (talentCharBonuses.celeritas || 0),
+    gratia: state.chars.gratia + (talentCharBonuses.gratia || 0),
+    mens: state.chars.mens + (talentCharBonuses.mens || 0),
+    prudentia: state.chars.prudentia + (talentCharBonuses.prudentia || 0),
+    audacia: state.chars.audacia + (talentCharBonuses.audacia || 0)
   };
+
+  let spirMax = ec.audacia + mod(ec.audacia) + (prog.skills.volonta?.grade || 0) + spiritoBonus + anticaBonus + spiritualeBonus;
+  for (const sf of prog.talentSpiritFormulas || []) {
+    if (sf.mode === "addScore") spirMax += ec[sf.characteristic] || 0;
+    else if (sf.mode === "addModifier") {
+      for (const charKey of sf.characteristics || []) spirMax += mod(ec[charKey] || 0);
+    }
+  }
+
+  const fatMax = ec.fortitudo + ec.audacia + (prog.talentResourceBonuses?.fatica || 0);
+  const ferMax = ec.fortitudo + mod(ec.fortitudo) + (prog.skills.forza?.grade || 0) + (prog.talentResourceBonuses?.ferite || 0);
+  const rifMax = ec.prudentia + mod(ec.celeritas) + riflessiBonus + (prog.talentResourceBonuses?.riflessi || 0);
 
   const spent = cartToItems(state.equipment.cart || []).reduce((sum, item) => {
     const qty = Number(item.system?.quantity ?? 1);
@@ -290,6 +214,25 @@ export function stateToFoundryActor(state) {
   }, 0);
   const remainingDenari = Math.max(0, (state.equipment.wealth || 0) - spent);
 
+  const retaggioTotal = Math.max(
+    0,
+    3 + mod(state.chars.gratia) + (state.retaggio.tentazione ? 1 : 0) + (hasCultureTrait(state, "intraprendente") ? 1 : 0)
+  );
+
+  const skills = Object.fromEntries(
+    Object.entries(prog.skills).map(([id, data]) => [
+      id,
+      {
+        grade: data.grade,
+        baseGrade: data.baseGrade,
+        isMestiere: data.isMestiere,
+        hasFocus: data.hasFocus,
+        focusCount: data.focusCount,
+        extraDice: data.extraDice
+      }
+    ])
+  );
+
   return {
     name: state.name || "Avventuriero",
     type: "character",
@@ -297,10 +240,17 @@ export function stateToFoundryActor(state) {
     system: {
       ceto: state.ceto,
       characteristics: state.chars,
+      effectiveCharacteristics: ec,
+      talentCharBonuses,
       skills,
-      resources,
-      fama: (state.ceto ? { umile: 0, popolano: 1, borghese: 2, nobile: 3 }[state.ceto] ?? 0 : 0) + famaBonus,
-      pe: { total: 0, spent: 0 },
+      resources: {
+        riflessi: { value: rifMax, max: rifMax },
+        spirito: { value: spirMax, max: spirMax },
+        fatica: { value: fatMax, max: fatMax },
+        ferite: { value: ferMax, max: ferMax }
+      },
+      fama: (CETO_FAMA[state.ceto] ?? 0) + famaBonus,
+      pe: { total: prog.peTotal, spent: prog.peSpent, available: prog.peAvailable },
       valori: valueUpdates,
       woundLevels: { graffi: 0, leggere: 0, gravi: 0, critiche: 0, mortali: 0 },
       culture: {
@@ -320,6 +270,8 @@ export function stateToFoundryActor(state) {
         legame: retaggioFlags.legame,
         cimelio: retaggioFlags.cimelio
       },
+      talents: prog.talents,
+      talentCount: prog.talentCount,
       events: eventsText,
       tentazione: state.retaggio.tentazione || "",
       money: denariToMoney(remainingDenari)

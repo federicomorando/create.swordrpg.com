@@ -12,8 +12,10 @@ python3 -m http.server 4173
 ```
 
 ## Features currently implemented
-- 8-step wizard structure inspired by Foundry creation flow.
+- 9-step wizard structure inspired by Foundry creation flow.
 - Local persistence (`localStorage`).
+- Final progression step for PE spending and automatic Talenti unlock/progress.
+- JSON import (Foundry-like actor) to continue character progression/editing.
 - Foundry-like JSON export.
 - PDF export using Foundry mapper + field map + template PDF.
 

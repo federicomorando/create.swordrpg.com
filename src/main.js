@@ -1,7 +1,7 @@
 import { CULTURE_DEFS, CULTURE_IDS, getCultureAllowedValori } from "./lib/cultures.mjs";
 import { WEAPONS, SHIELDS, ARMOR, GEAR, denariToDisplay } from "./lib/equipment.mjs";
 import { allSkillIds, BASE_SKILLS, CETO_COST, mestiereCost } from "./lib/actor-core.mjs";
-import { swordCheckResolve } from "./lib/sword-check.mjs";
+import { computeCreationSkillState, computeProgressionSummary } from "./lib/progression.mjs";
 import { exportFoundryJSON, exportCharacterPDF } from "./export/exporters.mjs";
 import {
   STEP_LABELS,
@@ -111,6 +111,12 @@ function defaultState() {
       wealthBase: 0,
       wealthRolled: false,
       cart: []
+    },
+    progression: {
+      source: "creation",
+      peTotal: 0,
+      baseSkillGrades: {},
+      currentSkillGrades: {}
     }
   };
 }
@@ -139,6 +145,14 @@ function normalizeState(rawState) {
   if (!Array.isArray(s.equipment.cart)) s.equipment.cart = [];
   if (typeof s.equipment.wealthBase !== "number") s.equipment.wealthBase = 0;
   if (typeof s.equipment.wealthRolled !== "boolean") s.equipment.wealthRolled = false;
+
+  if (!s.progression) {
+    s.progression = { source: "creation", peTotal: 0, baseSkillGrades: {}, currentSkillGrades: {} };
+  }
+  if (!s.progression.source) s.progression.source = "creation";
+  if (typeof s.progression.peTotal !== "number") s.progression.peTotal = 0;
+  if (!s.progression.baseSkillGrades || typeof s.progression.baseSkillGrades !== "object") s.progression.baseSkillGrades = {};
+  if (!s.progression.currentSkillGrades || typeof s.progression.currentSkillGrades !== "object") s.progression.currentSkillGrades = {};
 
   s.retaggio.events = s.retaggio.events
     .map((ev) => {
@@ -365,7 +379,8 @@ function stepValidation(step = state.step) {
     8: {
       ok: state.equipment.wealth > 0 && cartTotal() <= state.equipment.wealth,
       msg: "Equipaggiamento: tira la ricchezza e resta entro il budget."
-    }
+    },
+    9: { ok: true, msg: "" }
   };
   return checks[step];
 }
@@ -416,21 +431,62 @@ function buildTrainingOptions() {
   return { grade3Slots, grade2Slots };
 }
 
+function creationBaseGradeMap() {
+  const baseState = computeCreationSkillState(state);
+  return Object.fromEntries(
+    Object.entries(baseState).map(([id, data]) => [id, data.baseGrade])
+  );
+}
+
+function ensureProgressionState() {
+  if (!state.progression) {
+    state.progression = { source: "creation", peTotal: 0, baseSkillGrades: {}, currentSkillGrades: {} };
+  }
+
+  const skillIds = allSkillIds();
+  if (state.progression.source !== "import") {
+    const baseMap = creationBaseGradeMap();
+    state.progression.baseSkillGrades = baseMap;
+    for (const id of skillIds) {
+      const minGrade = baseMap[id] ?? 0;
+      const current = Number(state.progression.currentSkillGrades[id] ?? minGrade);
+      state.progression.currentSkillGrades[id] = Math.max(minGrade, Math.min(6, current));
+    }
+  } else {
+    for (const id of skillIds) {
+      const base = Number(state.progression.baseSkillGrades[id] ?? 0);
+      const current = Number(state.progression.currentSkillGrades[id] ?? base);
+      state.progression.baseSkillGrades[id] = Math.max(0, Math.min(6, base));
+      state.progression.currentSkillGrades[id] = Math.max(state.progression.baseSkillGrades[id], Math.min(6, current));
+    }
+  }
+}
+
+function progressionSummary() {
+  ensureProgressionState();
+  const creation = computeCreationSkillState(state);
+  const withBase = Object.fromEntries(
+    Object.entries(creation).map(([id, data]) => [
+      id,
+      {
+        ...data,
+        baseGrade:
+          state.progression.source === "import"
+            ? Number(state.progression.baseSkillGrades[id] ?? data.baseGrade)
+            : data.baseGrade
+      }
+    ])
+  );
+  return computeProgressionSummary(withBase, state.progression.currentSkillGrades, state.progression.peTotal);
+}
+
 function render() {
   syncSkillTrainingState();
   syncRetaggioState();
+  ensureProgressionState();
   const allowedValori = getCultureAllowedValori(state.cultureTrait1, state.cultureTrait2);
   const allSkills = allSkillIds();
   const validation = stepValidation(state.step);
-  // Keep a small runtime smoke-check call to ensure the engine module is loaded and callable.
-  swordCheckResolve({
-    characteristicScore: state.chars.fortitudo,
-    diceCount: 2,
-    grade: 1,
-    extraDice: 0,
-    diceRolled: [2, 3]
-  });
-
   app.innerHTML = `
     <main class="layout">
       <header class="header">
@@ -442,7 +498,9 @@ function render() {
           <div class="header-actions">
             <button data-action="export-json">Export JSON (Foundry)</button>
             <button data-action="export-pdf">Export PDF</button>
+            <button data-action="import-json">Import JSON</button>
             <button data-action="reset">Nuovo personaggio</button>
+            <input type="file" accept=\"application/json,.json\" data-import-file style=\"display:none\" />
           </div>
         </div>
         <div class="name-row">
@@ -461,7 +519,7 @@ function render() {
 
       <footer class="footer">
         <button data-action="prev-step" ${state.step === 1 ? "disabled" : ""}>Indietro</button>
-        <button data-action="next-step" ${state.step === 8 || !validation.ok ? "disabled" : ""}>Avanti</button>
+        <button data-action="next-step" ${state.step === 9 || !validation.ok ? "disabled" : ""}>Avanti</button>
         ${validation.ok ? "" : `<span class="warn">${validation.msg}</span>`}
       </footer>
     </main>
@@ -469,6 +527,7 @@ function render() {
 
   app.querySelectorAll("[data-action]").forEach((el) => el.addEventListener("click", onAction));
   app.querySelectorAll("[data-change]").forEach((el) => el.addEventListener("change", onChange));
+  app.querySelectorAll("[data-import-file]").forEach((el) => el.addEventListener("change", onImportFile));
   saveState();
 }
 
@@ -763,32 +822,81 @@ function renderStepContent(allowedValori, allSkills) {
     `;
   }
 
-  const items = buyableItems();
-  const remaining = state.equipment.wealth - cartTotal();
+  if (state.step === 8) {
+    const items = buyableItems();
+    const remaining = state.equipment.wealth - cartTotal();
+    return `
+      <h2>Equipaggiamento</h2>
+      <p>Ricchezza: <strong>${denariToDisplay(state.equipment.wealth)}</strong> (${state.equipment.wealth}d)</p>
+      <button data-action="roll-wealth">Tira ricchezza iniziale</button>
+      <div class="catalog">
+        ${items
+          .map((it) => `<button class="row buy" data-action="buy-item" data-id="${it.id}" ${remaining < it.cost ? "disabled" : ""}><span>${it.label}</span><span>${denariToDisplay(it.cost)}</span></button>`)
+          .join("")}
+      </div>
+      <h3>Carrello</h3>
+      <div class="list">
+        ${state.equipment.cart
+          .map((c) => {
+            const item = items.find((x) => x.id === c.id);
+            if (!item) return "";
+            return `<button class="row" data-action="remove-item" data-id="${c.id}"><span>${item.label} x${c.qty}</span><span>${denariToDisplay(item.cost * c.qty)}</span></button>`;
+          })
+          .join("")}
+      </div>
+      <p>Totale: ${denariToDisplay(cartTotal())} | Rimanente: ${denariToDisplay(remaining)}</p>
+    `;
+  }
+
+  const prog = progressionSummary();
+  const skills = Object.values(prog.skills).sort((a, b) => (SKILL_LABELS[a.id] ?? a.id).localeCompare(SKILL_LABELS[b.id] ?? b.id));
+  const unlockedTalents = Object.values(prog.talents).filter((t) => t.unlocked);
+  const partialTalents = Object.values(prog.talents).filter((t) => t.partial && !t.unlocked);
   return `
-    <h2>Equipaggiamento</h2>
-    <p>Ricchezza: <strong>${denariToDisplay(state.equipment.wealth)}</strong> (${state.equipment.wealth}d)</p>
-    <button data-action="roll-wealth">Tira ricchezza iniziale</button>
-    <div class="catalog">
-      ${items
-        .map((it) => `<button class="row buy" data-action="buy-item" data-id="${it.id}" ${remaining < it.cost ? "disabled" : ""}><span>${it.label}</span><span>${denariToDisplay(it.cost)}</span></button>`)
-        .join("")}
+    <h2>Progressione (PE e Talenti)</h2>
+    <div class="cards">
+      <div class="card">
+        <label>PE Totali
+          <input type="number" min="0" data-change="set-pe-total" value="${prog.peTotal}" />
+        </label>
+        <p>PE Spesi: <strong>${prog.peSpent}</strong></p>
+        <p>PE Disponibili: <strong>${prog.peAvailable}</strong></p>
+      </div>
+      <div class="card">
+        <p>Talenti sbloccati: <strong>${prog.talentCount}</strong></p>
+        <p>Talenti parziali: <strong>${partialTalents.length}</strong></p>
+      </div>
     </div>
-    <h3>Carrello</h3>
+    <h3>Abilita e Costi PE</h3>
     <div class="list">
-      ${state.equipment.cart
-        .map((c) => {
-          const item = items.find((x) => x.id === c.id);
-          if (!item) return "";
-          return `<button class="row" data-action="remove-item" data-id="${c.id}"><span>${item.label} x${c.qty}</span><span>${denariToDisplay(item.cost * c.qty)}</span></button>`;
-        })
+      ${skills
+        .map(
+          (s) => `
+          <div class="row">
+            <span>${SKILL_LABELS[s.id] ?? s.id} (base ${s.baseGrade})</span>
+            <div class="spin">
+              <button data-action="pe-skill-dec" data-skill="${s.id}" ${s.grade <= s.baseGrade ? "disabled" : ""}>-</button>
+              <strong>${s.grade}</strong>
+              <button data-action="pe-skill-inc" data-skill="${s.id}" ${s.grade >= 6 || (s.nextGradeCost != null && s.nextGradeCost > prog.peAvailable) ? "disabled" : ""}>+</button>
+              <em>${s.nextGradeCost == null ? "max" : `prossimo: ${s.nextGradeCost} PE`}</em>
+            </div>
+          </div>
+        `
+        )
         .join("")}
     </div>
-    <p>Totale: ${denariToDisplay(cartTotal())} | Rimanente: ${denariToDisplay(remaining)}</p>
+    <h3>Talenti Sbloccati</h3>
+    <div class="chips">
+      ${unlockedTalents
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((t) => `<span class="chip selected">${t.name}</span>`)
+        .join("")}
+    </div>
   `;
 }
 
 function canGoToStep(targetStep) {
+  if (state.progression?.source === "import") return true;
   for (let s = 1; s < targetStep; s += 1) {
     if (!stepValidation(s).ok) return false;
   }
@@ -799,12 +907,12 @@ async function onAction(event) {
   const { action } = event.currentTarget.dataset;
 
   if (action === "goto-step") {
-    const next = clamp(Number(event.currentTarget.dataset.step), 1, 8);
+    const next = clamp(Number(event.currentTarget.dataset.step), 1, 9);
     if (canGoToStep(next)) state.step = next;
   }
-  if (action === "prev-step") state.step = clamp(state.step - 1, 1, 8);
+  if (action === "prev-step") state.step = clamp(state.step - 1, 1, 9);
   if (action === "next-step") {
-    const next = clamp(state.step + 1, 1, 8);
+    const next = clamp(state.step + 1, 1, 9);
     if (stepValidation(state.step).ok && canGoToStep(next)) state.step = next;
   }
 
@@ -919,6 +1027,30 @@ async function onAction(event) {
     if (found.qty <= 0) state.equipment.cart = state.equipment.cart.filter((x) => x.id !== id);
   }
 
+  if (action === "import-json") {
+    const input = app.querySelector("[data-import-file]");
+    if (input) input.click();
+  }
+
+  if (action === "pe-skill-inc") {
+    const skillId = event.currentTarget.dataset.skill;
+    const prog = progressionSummary();
+    const nextCost = prog.skills?.[skillId]?.nextGradeCost;
+    if (nextCost == null || nextCost > prog.peAvailable) {
+      render();
+      return;
+    }
+    const current = Number(state.progression.currentSkillGrades[skillId] ?? 0);
+    state.progression.currentSkillGrades[skillId] = Math.min(6, current + 1);
+  }
+
+  if (action === "pe-skill-dec") {
+    const skillId = event.currentTarget.dataset.skill;
+    const base = Number(state.progression.baseSkillGrades[skillId] ?? 0);
+    const current = Number(state.progression.currentSkillGrades[skillId] ?? base);
+    state.progression.currentSkillGrades[skillId] = Math.max(base, current - 1);
+  }
+
   if (action === "export-json") {
     exportFoundryJSON(state);
   }
@@ -997,6 +1129,77 @@ function onChange(event) {
     const slot = Number(event.currentTarget.dataset.slot);
     state.retaggio.espGrade2[slot] = value;
   }
+  if (action === "set-pe-total") {
+    state.progression.peTotal = Math.max(0, Number(value || 0));
+  }
 
   render();
+}
+
+async function onImportFile(event) {
+  const file = event.currentTarget.files?.[0];
+  if (!file) return;
+  try {
+    const raw = await file.text();
+    const parsed = JSON.parse(raw);
+    const actor = parsed?.system ? parsed : parsed?.actor ?? null;
+    if (!actor?.system) throw new Error("Formato JSON non riconosciuto");
+
+    state.name = actor.name || state.name;
+    state.ceto = actor.system.ceto || state.ceto;
+
+    for (const key of CHAR_KEYS) {
+      const v = Number(actor.system.characteristics?.[key]);
+      if (!Number.isNaN(v)) state.chars[key] = v;
+    }
+
+    state.cultureTrait1 = actor.system.culture?.trait1 || "";
+    state.cultureTrait2 = actor.system.culture?.trait2 || "";
+    state.trait1Skill = "";
+    state.trait2Skill = "";
+
+    for (const k of VALORI) {
+      const v = Number(actor.system.valori?.[k]);
+      if (!Number.isNaN(v)) state.valori[k] = v;
+    }
+
+    state.retaggio.tentazione = actor.system.tentazione || "";
+    state.retaggio.events = [];
+    state.retaggio.espGrade3 = [""];
+    state.retaggio.espGrade2 = ["", ""];
+
+    const importedBase = {};
+    const importedCurrent = {};
+    for (const id of allSkillIds()) {
+      const data = actor.system.skills?.[id] || {};
+      const base = Number(data.baseGrade ?? data.grade ?? 0);
+      const current = Number(data.grade ?? base);
+      importedBase[id] = Math.max(0, Math.min(6, Number.isNaN(base) ? 0 : base));
+      importedCurrent[id] = Math.max(importedBase[id], Math.min(6, Number.isNaN(current) ? importedBase[id] : current));
+    }
+
+    state.skills.mestiere = allSkillIds().filter((id) => actor.system.skills?.[id]?.isMestiere);
+    state.skills.free = [];
+    state.skills.grade3 = ["", ""];
+    state.skills.grade2 = Array(8).fill("");
+
+    state.progression.source = "import";
+    state.progression.baseSkillGrades = importedBase;
+    state.progression.currentSkillGrades = importedCurrent;
+    state.progression.peTotal = Number(actor.system.pe?.total ?? 0) || 0;
+
+    state.equipment.cart = [];
+    const money = actor.system.money || {};
+    const wealth = (Number(money.lire || 0) * 240) + (Number(money.soldi || 0) * 12) + Number(money.denari || 0);
+    state.equipment.wealth = Math.max(0, wealth);
+    state.equipment.wealthBase = state.equipment.wealth;
+    state.equipment.wealthRolled = state.equipment.wealth > 0;
+
+    state.step = 9;
+  } catch (err) {
+    alert(`Import JSON fallito: ${err.message}`);
+  } finally {
+    event.currentTarget.value = "";
+    render();
+  }
 }

@@ -42,10 +42,26 @@ This project runs on GitHub Pages (no backend). Some creation steps need explici
 - Require wealth roll before advancing.
 - Block over-budget purchases via validation.
 
+9. `Progressione` (PE + Talenti)
+- New final step to spend PE on skill grades (up to grade 6, never below base grade).
+- PE cost follows Foundry logic (`peGradeCost`) and is tracked as total/spent/available.
+- Talents are recomputed automatically from current grades using Foundry talent rules.
+- Track effects (characteristic/resource/spirit formula bonuses) are included in exports.
+
+## JSON import/edit workflow
+
+- A Foundry-like actor JSON can be imported from the header action (`Import JSON`).
+- Import is intended for post-creation editing/progression:
+  - Loads name, ceto, characteristics, valori, money and skill grades.
+  - Initializes progression base/current grades and `pe.total`.
+  - Jumps directly to Step 9 so PE and Talents can be edited immediately.
+- When imported state is active, step navigation is unlocked to avoid blocking edits on creation-only constraints.
+
 ## Export-related constraints
 
 - JSON export is a Foundry-like actor payload generated from browser state.
 - Event effects are applied in export (extraDice, fama/spirito/riflessi bonus, retaggio flags, valori update from `Percorso spirituale`).
+- Progression effects are applied in export (PE totals, final grades, talents, talent bonuses).
 - PDF export uses Foundry's same mapper/field map/template copied locally.
 - Because no Foundry runtime exists in browser, adapter fields are computed in `src/export/foundry-adapter.mjs`.
 

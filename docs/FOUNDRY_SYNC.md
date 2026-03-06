@@ -2,7 +2,6 @@
 
 This project intentionally reuses SwORD logic from:
 - `/home/federico/Claude-Code/foundry/sword/module/data/*`
-- `/home/federico/Claude-Code/foundry/sword/module/engine/sword-check.mjs`
 - `/home/federico/Claude-Code/foundry/sword/module/pdf/*`
 - `/home/federico/Claude-Code/foundry/sword/assets/TdS-scheda-editabile.pdf`
 
@@ -11,6 +10,7 @@ Keep this GitHub Pages app aligned with Foundry when Foundry evolves, especially
 1. Runtime logic/data parity.
 2. JSON export parity (Foundry-like actor JSON).
 3. PDF export parity (same mapper + field map + template style).
+4. Progression parity (PE spending and Talenti unlock/progress).
 
 ## One-command drift check
 From repo root:
@@ -31,6 +31,7 @@ FOUNDRY_PATH=/path/to/foundry ./scripts/check-foundry-sync.sh
 3. SHA256 checksums for mirrored files in this project.
 4. Wizard flow/action drift in `creation-wizard.hbs`.
 5. Presence of JSON/PDF export entrypoints in this project.
+6. Mirrored talent/progression source checks (where available).
 
 ## Export formats in this project
 - JSON export entrypoint: `src/export/foundry-adapter.mjs`
@@ -46,13 +47,16 @@ FOUNDRY_PATH=/path/to/foundry ./scripts/check-foundry-sync.sh
 2. If a mirrored file is `CHANGED`, inspect diff and recopy/adapt.
 3. Re-run app and perform manual parity checks:
    - Export JSON and inspect fields (`system`, `skills`, `items`).
+   - If Step 9 is used, inspect `system.pe`, `system.talents`, and upgraded skill grades.
    - Export PDF and verify key fields (name, ceto, caratteristiche, abilita, equip, valori).
+   - JSON import a Foundry-like actor and verify PE/Talenti editing works without creation-step blockers.
 4. Commit both code and this documentation if workflow changed.
 
 ## Files that should usually stay mirrored bit-by-bit
 - `src/lib/sword-check.mjs`
 - `src/lib/cultures.mjs`
 - `src/lib/equipment.mjs`
+- `src/lib/talents.mjs`
 - `src/lib/pdf/pdf-mapper.mjs`
 - `src/lib/pdf/pdf-field-map.json`
 - `src/lib/pdf/vendor/pdf-lib.min.mjs`
@@ -62,5 +66,6 @@ FOUNDRY_PATH=/path/to/foundry ./scripts/check-foundry-sync.sh
 - `src/main.js`
 - `src/export/foundry-adapter.mjs`
 - `src/export/exporters.mjs`
+- `src/lib/progression.mjs`
 
 These files bridge browser-only app state to Foundry-like structures.

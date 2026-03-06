@@ -6,7 +6,8 @@ export const STEP_LABELS = [
   "5. Abilita",
   "6. Valori",
   "7. Retaggio",
-  "8. Equipaggiamento"
+  "8. Equipaggiamento",
+  "9. Progressione"
 ];
 
 export const CETO_LABELS = {

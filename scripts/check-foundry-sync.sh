@@ -71,6 +71,7 @@ compare_file() {
 compare_file "$FOUNDRY_SWORD/module/engine/sword-check.mjs" "$PROJECT_ROOT/src/lib/sword-check.mjs" "Engine check resolver"
 compare_file "$FOUNDRY_SWORD/module/data/cultures.mjs" "$PROJECT_ROOT/src/lib/cultures.mjs" "Culture definitions"
 compare_file "$FOUNDRY_SWORD/module/data/equipment.mjs" "$PROJECT_ROOT/src/lib/equipment.mjs" "Equipment library"
+compare_file "$FOUNDRY_SWORD/module/data/talents.mjs" "$PROJECT_ROOT/src/lib/talents.mjs" "Talent definitions"
 compare_file "$FOUNDRY_SWORD/module/pdf/pdf-mapper.mjs" "$PROJECT_ROOT/src/lib/pdf/pdf-mapper.mjs" "PDF mapper"
 compare_file "$FOUNDRY_SWORD/module/pdf/pdf-field-map.json" "$PROJECT_ROOT/src/lib/pdf/pdf-field-map.json" "PDF field map"
 compare_file "$FOUNDRY_SWORD/module/pdf/vendor/pdf-lib.min.mjs" "$PROJECT_ROOT/src/lib/pdf/vendor/pdf-lib.min.mjs" "PDF lib vendor"
