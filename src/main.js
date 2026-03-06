@@ -579,11 +579,11 @@ function render() {
       <section class="panel">
         ${renderStepContent(allowedValori, allSkills)}
       </section>
+      <p class="page-end-link"><a href="./about.html">About</a></p>
 
       <footer class="footer">
         <button data-action="prev-step" ${state.step === 1 ? "disabled" : ""}>Indietro</button>
         <button data-action="next-step" ${state.step === 9 || !validation.ok ? "disabled" : ""}>Avanti</button>
-        <a class="footer-link" href="./about.html">About</a>
         ${validation.ok ? "" : `<span class="warn" aria-live="polite">${validation.msg}</span>`}
       </footer>
     </main>

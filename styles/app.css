@@ -348,14 +348,20 @@ button {
   backdrop-filter: blur(8px);
 }
 
+.page-end-link {
+  margin: 2px 0 4px;
+  text-align: center;
+}
+
+.page-end-link a,
 .footer-link {
-  grid-column: 1 / -1;
-  justify-self: center;
   color: var(--accent);
   font-weight: 600;
   text-decoration: none;
 }
 
+.page-end-link a:hover,
+.page-end-link a:focus-visible,
 .footer-link:hover,
 .footer-link:focus-visible {
   text-decoration: underline;
@@ -486,11 +492,6 @@ select:focus-visible {
     display: flex;
     flex-wrap: wrap;
     backdrop-filter: none;
-  }
-
-  .footer-link {
-    grid-column: auto;
-    justify-self: auto;
   }
 
   .warn {
