@@ -529,8 +529,7 @@ function render() {
       <header class="header">
         <div class="header-top">
           <div>
-            <h1>Il Tempo della Spada - Character Lab</h1>
-            <p>Frontend-only wizard (GitHub Pages). Auto-save in localStorage.</p>
+            <h1>Il Tempo della Spada - Creazione PG</h1>
           </div>
           <div class="header-actions">
             <details class="actions-menu">
@@ -584,6 +583,7 @@ function render() {
       <footer class="footer">
         <button data-action="prev-step" ${state.step === 1 ? "disabled" : ""}>Indietro</button>
         <button data-action="next-step" ${state.step === 9 || !validation.ok ? "disabled" : ""}>Avanti</button>
+        <a class="footer-link" href="./about.html">About</a>
         ${validation.ok ? "" : `<span class="warn" aria-live="polite">${validation.msg}</span>`}
       </footer>
     </main>

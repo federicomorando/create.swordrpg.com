@@ -348,6 +348,19 @@ button {
   backdrop-filter: blur(8px);
 }
 
+.footer-link {
+  grid-column: 1 / -1;
+  justify-self: center;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.footer-link:hover,
+.footer-link:focus-visible {
+  text-decoration: underline;
+}
+
 .warn {
   grid-column: 1 / -1;
   color: #8c2f1b;
@@ -473,6 +486,11 @@ select:focus-visible {
     display: flex;
     flex-wrap: wrap;
     backdrop-filter: none;
+  }
+
+  .footer-link {
+    grid-column: auto;
+    justify-self: auto;
   }
 
   .warn {
