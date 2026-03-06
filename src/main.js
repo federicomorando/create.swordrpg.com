@@ -574,7 +574,13 @@ function renderStepContent(allowedValori, allSkills) {
 
   if (state.step === 3) {
     const cultureOption = (selected, other) =>
-      CULTURE_IDS.map((id) => `<option value="${id}" ${selected === id ? "selected" : ""} ${other === id ? "disabled" : ""}>${id}</option>`).join("");
+      [
+        `<option value="" ${selected ? "" : "selected"}>-</option>`,
+        ...CULTURE_IDS.map(
+          (id) =>
+            `<option value="${id}" ${selected === id ? "selected" : ""} ${other === id ? "disabled" : ""}>${id}</option>`
+        )
+      ].join("");
 
     const trait1Skills = state.cultureTrait1 && CULTURE_DEFS[state.cultureTrait1].skillChoices
       ? CULTURE_DEFS[state.cultureTrait1].skillChoices
