@@ -8,6 +8,7 @@ Date: 2026-03-06
 - Foundry-like JSON export.
 - PDF export using Foundry mapper, field map, and original template.
 - GitHub Pages workflow + custom domain setup (`create.swordrpg.com`).
+- UI cleanup: export/reset actions moved to top-right header; debug check indicator removed from footer.
 
 ## Known Notes
 - GitHub Pages `Enforce HTTPS` is still false because GitHub certificate provisioning was not ready at check time.

@@ -422,7 +422,8 @@ function render() {
   const allowedValori = getCultureAllowedValori(state.cultureTrait1, state.cultureTrait2);
   const allSkills = allSkillIds();
   const validation = stepValidation(state.step);
-  const sampleCheck = swordCheckResolve({
+  // Keep a small runtime smoke-check call to ensure the engine module is loaded and callable.
+  swordCheckResolve({
     characteristicScore: state.chars.fortitudo,
     diceCount: 2,
     grade: 1,
@@ -433,8 +434,17 @@ function render() {
   app.innerHTML = `
     <main class="layout">
       <header class="header">
-        <h1>Il Tempo della Spada - Character Lab</h1>
-        <p>Frontend-only wizard (GitHub Pages). Auto-save in localStorage.</p>
+        <div class="header-top">
+          <div>
+            <h1>Il Tempo della Spada - Character Lab</h1>
+            <p>Frontend-only wizard (GitHub Pages). Auto-save in localStorage.</p>
+          </div>
+          <div class="header-actions">
+            <button data-action="export-json">Export JSON (Foundry)</button>
+            <button data-action="export-pdf">Export PDF</button>
+            <button data-action="reset">Nuovo personaggio</button>
+          </div>
+        </div>
         <div class="name-row">
           <label>Nome personaggio</label>
           <input value="${escapeHTML(state.name)}" data-change="set-name" />
@@ -452,11 +462,7 @@ function render() {
       <footer class="footer">
         <button data-action="prev-step" ${state.step === 1 ? "disabled" : ""}>Indietro</button>
         <button data-action="next-step" ${state.step === 8 || !validation.ok ? "disabled" : ""}>Avanti</button>
-        <button data-action="export-json">Export JSON (Foundry)</button>
-        <button data-action="export-pdf">Export PDF</button>
-        <button data-action="reset">Nuovo personaggio</button>
         ${validation.ok ? "" : `<span class="warn">${validation.msg}</span>`}
-        <span class="engine-demo">Check engine demo: successi=${sampleCheck.finalSuccesses}</span>
       </footer>
     </main>
   `;

@@ -30,6 +30,20 @@ body {
   padding: 12px;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .name-row { display: grid; gap: 6px; max-width: 360px; }
 .name-row input, select {
   padding: 6px;
@@ -62,12 +76,12 @@ body {
 .row { display: flex; justify-content: space-between; align-items: center; }
 .spin { display: flex; align-items: center; gap: 6px; }
 .footer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.engine-demo { margin-left: auto; font-size: 12px; opacity: 0.8; }
 .warn { color: #8c2f1b; font-size: 12px; }
 .note { font-size: 12px; opacity: 0.8; }
 
 @media (max-width: 760px) {
+  .header-top { flex-direction: column; align-items: stretch; }
+  .header-actions { justify-content: flex-start; }
   .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid2 { grid-template-columns: 1fr; }
-  .engine-demo { width: 100%; margin-left: 0; }
 }
