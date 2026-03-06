@@ -908,13 +908,13 @@ function renderStepContent(allowedValori, allSkills) {
       ${skills
         .map(
           (s) => `
-          <div class="row">
+          <div class="row progression-row">
             <span>${SKILL_LABELS[s.id] ?? s.id} (base ${s.baseGrade})</span>
-            <div class="spin">
+            <div class="spin progression-spin">
               <button data-action="pe-skill-dec" data-skill="${s.id}" ${s.grade <= s.baseGrade ? "disabled" : ""}>-</button>
-              <strong>${s.grade}</strong>
+              <strong class="progression-grade">${s.grade}</strong>
               <button data-action="pe-skill-inc" data-skill="${s.id}" ${s.grade >= 6 || (s.nextGradeCost != null && s.nextGradeCost > prog.peAvailable) ? "disabled" : ""}>+</button>
-              <em>${s.nextGradeCost == null ? "max" : `prossimo: ${s.nextGradeCost} PE`}</em>
+              <em class="progression-next">${s.nextGradeCost == null ? "max" : `prossimo: ${s.nextGradeCost} PE`}</em>
             </div>
           </div>
         `

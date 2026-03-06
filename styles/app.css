@@ -75,6 +75,27 @@ body {
 .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .row { display: flex; justify-content: space-between; align-items: center; }
 .spin { display: flex; align-items: center; gap: 6px; }
+.progression-row { align-items: center; }
+.progression-spin {
+  display: grid;
+  grid-template-columns: 2.25rem 2.25rem 2.25rem 12ch;
+  align-items: center;
+  justify-items: center;
+  column-gap: 6px;
+}
+.progression-grade {
+  display: inline-block;
+  width: 2.25rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.progression-next {
+  display: inline-block;
+  width: 12ch;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .footer { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .warn { color: #8c2f1b; font-size: 12px; }
 .note { font-size: 12px; opacity: 0.8; }
@@ -84,4 +105,6 @@ body {
   .header-actions { justify-content: flex-start; }
   .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid2 { grid-template-columns: 1fr; }
+  .progression-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .progression-spin { grid-template-columns: 2.25rem 2.25rem 2.25rem minmax(9ch, 1fr); }
 }
