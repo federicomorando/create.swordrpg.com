@@ -340,8 +340,22 @@ button {
 }
 
 button:disabled {
-  opacity: 0.5;
+  opacity: 1;
   cursor: not-allowed;
+  background: #ece8e1;
+  border-color: #c7bfb2;
+  color: #8a8278;
+}
+
+.row.row-disabled {
+  background: #f1f1f1;
+  border-color: #d7d7d7;
+  color: #8b8b8b;
+}
+
+.row.row-disabled strong,
+.row.row-disabled em {
+  color: #8b8b8b;
 }
 
 button:not(:disabled):hover,

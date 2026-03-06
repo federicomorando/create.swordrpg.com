@@ -780,7 +780,7 @@ function renderStepContent(allowedValori, allSkills) {
       <div class="grid2">
         ${VALORI.map(
           (v) => `
-          <div class="row">
+          <div class="row ${allowedValori.has(v) ? "" : "row-disabled"}">
             <span>${VALORE_LABELS[v]}</span>
             <div class="spin">
               <button data-action="val-dec" data-valore="${v}" aria-label="Diminuisci ${VALORE_LABELS[v]}" ${state.valori[v] <= 0 ? "disabled" : ""}>-</button>
