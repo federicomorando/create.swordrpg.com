@@ -1,0 +1,26 @@
+# SwORD Character Lab (GitHub Pages)
+
+Browser-only character creation prototype for **Il Tempo della Spada**.
+
+## Run locally
+
+```bash
+python3 -m http.server 4173
+# then open http://localhost:4173
+```
+
+## Features currently implemented
+- 8-step wizard structure inspired by Foundry creation flow.
+- Local persistence (`localStorage`).
+- Foundry-like JSON export.
+- PDF export using Foundry mapper + field map + template PDF.
+
+## Maintenance
+Use the drift checker to keep parity with Foundry:
+
+```bash
+./scripts/check-foundry-sync.sh
+```
+
+Detailed guide: `docs/FOUNDRY_SYNC.md`.
+Step-by-step constraints: `docs/STEP_CONSTRAINTS.md`.
