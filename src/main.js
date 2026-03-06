@@ -533,10 +533,21 @@ function render() {
             <p>Frontend-only wizard (GitHub Pages). Auto-save in localStorage.</p>
           </div>
           <div class="header-actions">
-            <button data-action="export-json">Export JSON (Foundry)</button>
-            <button data-action="export-pdf">Export PDF</button>
-            <button data-action="import-json">Import JSON</button>
-            <button data-action="reset">Nuovo personaggio</button>
+            <details class="actions-menu">
+              <summary aria-label="Apri menu azioni">Menu</summary>
+              <div class="actions-menu-list">
+                <button data-action="export-json">Export JSON (Foundry)</button>
+                <button data-action="export-pdf">Export PDF</button>
+                <button data-action="import-json">Import JSON</button>
+                <button data-action="reset">Nuovo personaggio</button>
+              </div>
+            </details>
+            <div class="actions-inline">
+              <button data-action="export-json">Export JSON (Foundry)</button>
+              <button data-action="export-pdf">Export PDF</button>
+              <button data-action="import-json">Import JSON</button>
+              <button data-action="reset">Nuovo personaggio</button>
+            </div>
             <input type="file" accept=\"application/json,.json\" data-import-file style=\"display:none\" />
           </div>
         </div>
