@@ -399,6 +399,28 @@ function stepValidation(step = state.step) {
   return checks[step];
 }
 
+function uiSummary() {
+  const hasUrbana = state.cultureTrait1 === "urbana" || state.cultureTrait2 === "urbana";
+  const mestiereUsed = state.skills.mestiere.reduce(
+    (sum, id) => sum + (mestiereCost(id, state.ceto, hasUrbana) ?? 0),
+    0
+  );
+  const remainingWealth = state.equipment.wealth - cartTotal();
+  const prog = progressionSummary();
+
+  return {
+    ceto: CETO_LABELS[state.ceto],
+    charsLeft: Math.max(0, 54 - charPointsUsed()),
+    mestiereLeft: Math.max(0, 6 - mestiereUsed),
+    freeLeft: Math.max(0, freePicksTotal() - freePicksUsed()),
+    valoriLeft: Math.max(0, 3 - totalValoriPoints()),
+    retaggioLeft: Math.max(0, retaggioAvailable() - state.retaggio.events.length),
+    wealthText:
+      state.equipment.wealth > 0 ? denariToDisplay(Math.max(0, remainingWealth)) : "non tirata",
+    peText: `${prog.peAvailable} PE`
+  };
+}
+
 function syncSkillTrainingState() {
   const known = new Set(knownSkillIds());
   const freeRaised = new Set(
@@ -501,6 +523,7 @@ function render() {
   const allowedValori = getCultureAllowedValori(state.cultureTrait1, state.cultureTrait2);
   const allSkills = allSkillIds();
   const validation = stepValidation(state.step);
+  const summary = uiSummary();
   app.innerHTML = `
     <main class="layout">
       <header class="header">
@@ -524,7 +547,20 @@ function render() {
       </header>
 
       <section class="steps">
-        ${STEP_LABELS.map((label, i) => `<button class="step ${state.step === i + 1 ? "active" : ""}" data-action="goto-step" data-step="${i + 1}">${label}</button>`).join("")}
+        ${STEP_LABELS.map((label, i) => `<button class="step ${state.step === i + 1 ? "active" : ""}" data-action="goto-step" data-step="${i + 1}" ${state.step === i + 1 ? 'aria-current="step"' : ""}>${label}</button>`).join("")}
+      </section>
+
+      <p class="step-meta">Step ${state.step} di ${STEP_LABELS.length}: ${STEP_LABELS[state.step - 1]}</p>
+      <section class="mobile-summary" aria-label="Riepilogo rapido">
+        <p class="mobile-summary-title">Riepilogo rapido</p>
+        <div class="mobile-summary-grid">
+          <span class="chip">Ceto: ${summary.ceto}</span>
+          <span class="chip">Car. mancanti: ${summary.charsLeft}</span>
+          <span class="chip">Mestiere/libere: ${summary.mestiereLeft}/${summary.freeLeft}</span>
+          <span class="chip">Valori/Retaggio: ${summary.valoriLeft}/${summary.retaggioLeft}</span>
+          <span class="chip">Budget: ${summary.wealthText}</span>
+          <span class="chip">PE liberi: ${summary.peText}</span>
+        </div>
       </section>
 
       <section class="panel">
@@ -534,7 +570,7 @@ function render() {
       <footer class="footer">
         <button data-action="prev-step" ${state.step === 1 ? "disabled" : ""}>Indietro</button>
         <button data-action="next-step" ${state.step === 9 || !validation.ok ? "disabled" : ""}>Avanti</button>
-        ${validation.ok ? "" : `<span class="warn">${validation.msg}</span>`}
+        ${validation.ok ? "" : `<span class="warn" aria-live="polite">${validation.msg}</span>`}
       </footer>
     </main>
   `;
@@ -574,9 +610,9 @@ function renderStepContent(allowedValori, allSkills) {
           <div class="row">
             <span>${CHAR_LABELS[key]}</span>
             <div class="spin">
-              <button data-action="char-dec" data-char="${key}">-</button>
+              <button data-action="char-dec" data-char="${key}" aria-label="Diminuisci ${CHAR_LABELS[key]}">-</button>
               <strong>${state.chars[key]}</strong>
-              <button data-action="char-inc" data-char="${key}">+</button>
+              <button data-action="char-inc" data-char="${key}" aria-label="Aumenta ${CHAR_LABELS[key]}">+</button>
               <em>mod ${modifier(state.chars[key]) >= 0 ? "+" : ""}${modifier(state.chars[key])}</em>
             </div>
           </div>
@@ -736,9 +772,9 @@ function renderStepContent(allowedValori, allSkills) {
           <div class="row">
             <span>${VALORE_LABELS[v]}</span>
             <div class="spin">
-              <button data-action="val-dec" data-valore="${v}" ${state.valori[v] <= 0 ? "disabled" : ""}>-</button>
+              <button data-action="val-dec" data-valore="${v}" aria-label="Diminuisci ${VALORE_LABELS[v]}" ${state.valori[v] <= 0 ? "disabled" : ""}>-</button>
               <strong>${state.valori[v]}</strong>
-              <button data-action="val-inc" data-valore="${v}" ${state.valori[v] >= 3 || totalValoriPoints() >= 3 || !allowedValori.has(v) ? "disabled" : ""}>+</button>
+              <button data-action="val-inc" data-valore="${v}" aria-label="Aumenta ${VALORE_LABELS[v]}" ${state.valori[v] >= 3 || totalValoriPoints() >= 3 || !allowedValori.has(v) ? "disabled" : ""}>+</button>
             </div>
           </div>
         `
@@ -911,9 +947,9 @@ function renderStepContent(allowedValori, allSkills) {
           <div class="row progression-row">
             <span>${SKILL_LABELS[s.id] ?? s.id} (base ${s.baseGrade})</span>
             <div class="spin progression-spin">
-              <button data-action="pe-skill-dec" data-skill="${s.id}" ${s.grade <= s.baseGrade ? "disabled" : ""}>-</button>
+              <button data-action="pe-skill-dec" data-skill="${s.id}" aria-label="Riduci grado ${SKILL_LABELS[s.id] ?? s.id}" ${s.grade <= s.baseGrade ? "disabled" : ""}>-</button>
               <strong class="progression-grade">${s.grade}</strong>
-              <button data-action="pe-skill-inc" data-skill="${s.id}" ${s.grade >= 6 || (s.nextGradeCost != null && s.nextGradeCost > prog.peAvailable) ? "disabled" : ""}>+</button>
+              <button data-action="pe-skill-inc" data-skill="${s.id}" aria-label="Aumenta grado ${SKILL_LABELS[s.id] ?? s.id}" ${s.grade >= 6 || (s.nextGradeCost != null && s.nextGradeCost > prog.peAvailable) ? "disabled" : ""}>+</button>
               <em class="progression-next">${s.nextGradeCost == null ? "max" : `prossimo: ${s.nextGradeCost} PE`}</em>
             </div>
           </div>
