@@ -2,7 +2,7 @@
 
 Browser-only character creation prototype for **Il Tempo della Spada**.
 
-Current version: `1.0.0` (see `VERSION` and `docs/RELEASE_1.0.md`).
+Current version: `1.5.0` (see `VERSION` and `docs/RELEASE_1.5.md`).
 
 ## Run locally
 
@@ -28,4 +28,4 @@ Use the drift checker to keep parity with Foundry:
 
 Detailed guide: `docs/FOUNDRY_SYNC.md`.
 Step-by-step constraints: `docs/STEP_CONSTRAINTS.md`.
-Release notes: `docs/RELEASE_1.0.md`.
+Release notes: `docs/RELEASE_1.5.md` (historical: `docs/RELEASE_1.0.md`).
