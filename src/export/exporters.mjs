@@ -1,6 +1,64 @@
 import { stateToFoundryActor, stateToFoundryCharacterJSON } from "./foundry-adapter.mjs";
 import { buildPdfPayload } from "../lib/pdf/pdf-mapper.mjs";
 
+const MULTILINE_FIELD_RULES = [
+  { pattern: /^Equipaggiamento \d+[SD]$/i, maxLineLength: 18, maxLines: 2 },
+  { pattern: /^Pregiarmi\d+$/i, maxLineLength: 20, maxLines: 2 },
+  { pattern: /^Note armatura 1$/i, maxLineLength: 20, maxLines: 2 },
+  { pattern: /^Note Armatura [23]$/i, maxLineLength: 20, maxLines: 2 },
+  { pattern: /^Talenti\d+$/i, maxLineLength: 20, maxLines: 2 },
+  { pattern: /^Tratti \d+$/i, maxLineLength: 20, maxLines: 2 },
+  { pattern: /^Eventi \d+$/i, maxLineLength: 20, maxLines: 2 },
+];
+
+const FONT_SIZE_RULES = [
+  { pattern: /^Equipaggiamento \d+[SD]$/i, normal: 9, small: 8, tiny: 7, smallAt: 24, tinyAt: 34 },
+  { pattern: /^Pregiarmi\d+$/i, normal: 9, small: 8, tiny: 7, smallAt: 24, tinyAt: 34 },
+  { pattern: /^Note armatura 1$/i, normal: 9, small: 8, tiny: 7, smallAt: 24, tinyAt: 34 },
+  { pattern: /^Note Armatura [23]$/i, normal: 9, small: 8, tiny: 7, smallAt: 24, tinyAt: 34 },
+  { pattern: /^Talenti\d+$/i, normal: 9, small: 8, tiny: 7, smallAt: 24, tinyAt: 34 },
+  { pattern: /^Tratti \d+$/i, normal: 9, small: 8, tiny: 7, smallAt: 24, tinyAt: 34 },
+  { pattern: /^Eventi \d+$/i, normal: 9, small: 8, tiny: 7, smallAt: 24, tinyAt: 34 },
+  { pattern: /^Nome$/i, normal: 10, small: 9, tiny: 8, smallAt: 24, tinyAt: 34 },
+];
+
+function wrapTextForPdf(text, maxLineLength, maxLines) {
+  const words = String(text).trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "";
+
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length <= maxLineLength) {
+      current = next;
+      continue;
+    }
+    if (current) lines.push(current);
+    current = word;
+    if (lines.length >= maxLines - 1) break;
+  }
+
+  if (lines.length < maxLines && current) lines.push(current);
+  if (lines.length > maxLines) lines.length = maxLines;
+  return lines.join("\n");
+}
+
+function choosePdfFontSize(fieldName, value) {
+  const rule = FONT_SIZE_RULES.find((r) => r.pattern.test(fieldName));
+  if (!rule) return null;
+  const len = String(value ?? "").length;
+  if (len >= rule.tinyAt) return rule.tiny;
+  if (len >= rule.smallAt) return rule.small;
+  return rule.normal;
+}
+
+function fitPdfTextByField(fieldName, value) {
+  const rule = MULTILINE_FIELD_RULES.find((r) => r.pattern.test(fieldName));
+  if (!rule) return String(value);
+  return wrapTextForPdf(value, rule.maxLineLength, rule.maxLines);
+}
+
 function downloadBlob(blob, filename) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -40,7 +98,26 @@ export async function exportCharacterPDF(state) {
     if (value === "" || value == null) continue;
     try {
       const field = form.getTextField(fieldName);
-      field.acroField.setValue(PDFHexString.fromText(String(value)));
+      const fittedValue = fitPdfTextByField(fieldName, value);
+      const targetFontSize = choosePdfFontSize(fieldName, fittedValue);
+
+      if (MULTILINE_FIELD_RULES.some((r) => r.pattern.test(fieldName))) {
+        try {
+          field.enableMultiline();
+        } catch {
+          // Some fields may not accept multiline in the template definition.
+        }
+      }
+
+      if (targetFontSize != null) {
+        try {
+          field.setFontSize(targetFontSize);
+        } catch {
+          // Keep template default if size cannot be overridden.
+        }
+      }
+
+      field.acroField.setValue(PDFHexString.fromText(String(fittedValue)));
       for (const widget of field.acroField.getWidgets()) widget.dict.delete(PDFName.of("AP"));
     } catch {
       // Ignore missing/unexpected form fields to preserve compatibility with map revisions.

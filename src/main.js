@@ -299,11 +299,12 @@ function buyableItems() {
   const weapons = WEAPONS.slice(0, 12).map((w) => ({
     id: `weapon:${w.weaponId}`,
     label: w.label,
-    cost: w.costDenari
+    cost: w.costDenari,
+    type: "weapon"
   }));
-  const shields = SHIELDS.map((s) => ({ id: `shield:${s.shieldId}`, label: s.label, cost: s.costDenari }));
-  const armor = ARMOR.map((a) => ({ id: `armor:${a.armorId}`, label: a.label, cost: a.costDenari }));
-  const gear = GEAR.slice(0, 12).map((g) => ({ id: `gear:${g.gearId}`, label: g.label, cost: g.costDenari }));
+  const shields = SHIELDS.map((s) => ({ id: `shield:${s.shieldId}`, label: s.label, cost: s.costDenari, type: "shield" }));
+  const armor = ARMOR.map((a) => ({ id: `armor:${a.armorId}`, label: a.label, cost: a.costDenari, type: "armor" }));
+  const gear = GEAR.slice(0, 12).map((g) => ({ id: `gear:${g.gearId}`, label: g.label, cost: g.costDenari, type: "gear" }));
   return [...weapons, ...shields, ...armor, ...gear];
 }
 
@@ -916,13 +917,30 @@ function renderStepContent(allowedValori, allSkills) {
   if (state.step === 8) {
     const items = buyableItems();
     const remaining = state.equipment.wealth - cartTotal();
+    const groups = [
+      { title: "Armi", items: items.filter((it) => it.type === "weapon") },
+      { title: "Scudi", items: items.filter((it) => it.type === "shield") },
+      { title: "Armature", items: items.filter((it) => it.type === "armor") },
+      { title: "Equipaggiamento", items: items.filter((it) => it.type === "gear") }
+    ];
     return `
       <h2>Equipaggiamento</h2>
       <p>Ricchezza: <strong>${denariToDisplay(state.equipment.wealth)}</strong> (${state.equipment.wealth}d)</p>
       <button data-action="roll-wealth">Tira ricchezza iniziale</button>
       <div class="catalog">
-        ${items
-          .map((it) => `<button class="row buy" data-action="buy-item" data-id="${it.id}" ${remaining < it.cost ? "disabled" : ""}><span>${it.label}</span><span>${denariToDisplay(it.cost)}</span></button>`)
+        ${groups
+          .map(
+            (group) => `
+              <div class="card catalog-group">
+                <strong>${group.title}</strong>
+                <div class="list">
+                  ${group.items
+                    .map((it) => `<button class="row buy" data-action="buy-item" data-id="${it.id}" ${remaining < it.cost ? "disabled" : ""}><span>${it.label}</span><span>${denariToDisplay(it.cost)}</span></button>`)
+                    .join("")}
+                </div>
+              </div>
+            `
+          )
           .join("")}
       </div>
       <h3>Carrello</h3>

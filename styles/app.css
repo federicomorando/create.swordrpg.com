@@ -265,6 +265,12 @@ button {
   gap: 8px;
 }
 
+.catalog-group > strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
 .grid2 {
   display: grid;
   grid-template-columns: 1fr;
