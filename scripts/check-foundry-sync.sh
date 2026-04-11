@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FOUNDRY_PATH="${FOUNDRY_PATH:-/home/federico/Claude-Code/foundry}"
+FOUNDRY_PATH="${FOUNDRY_PATH:-/home/federico/swordrpg/foundry}"
 FOUNDRY_SWORD="$FOUNDRY_PATH/sword"
 
 if [[ ! -d "$FOUNDRY_SWORD" ]]; then

@@ -1,9 +1,9 @@
 # Foundry Sync and Export Compatibility
 
 This project intentionally reuses SwORD logic from:
-- `/home/federico/Claude-Code/foundry/sword/module/data/*`
-- `/home/federico/Claude-Code/foundry/sword/module/pdf/*`
-- `/home/federico/Claude-Code/foundry/sword/assets/TdS-scheda-editabile.pdf`
+- `/home/federico/swordrpg/foundry/sword/module/data/*`
+- `/home/federico/swordrpg/foundry/sword/module/pdf/*`
+- `/home/federico/swordrpg/foundry/sword/assets/TdS-scheda-editabile.pdf`
 
 ## Goal
 Keep this GitHub Pages app aligned with Foundry when Foundry evolves, especially for:
