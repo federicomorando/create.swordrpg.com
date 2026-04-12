@@ -220,9 +220,9 @@ export function exportFoundryJSON(state) {
 
 export async function exportCharacterPDF(state) {
   const [{ PDFDocument, PDFName, StandardFonts }, mapResp, tplResp] = await Promise.all([
-    import("../lib/pdf/vendor/pdf-lib.min.mjs"),
-    fetch("./src/lib/pdf/pdf-field-map.json"),
-    fetch("./src/assets/TdS-scheda-editabile.pdf")
+    import("pdf-lib"),
+    fetch("/pdf-field-map.json"),
+    fetch("/TdS-scheda-editabile.pdf")
   ]);
 
   if (!mapResp.ok) throw new Error(`Cannot load pdf-field-map.json (${mapResp.status})`);

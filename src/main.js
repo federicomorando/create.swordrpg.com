@@ -1,7 +1,7 @@
-import { CULTURE_DEFS, CULTURE_IDS, getCultureAllowedValori } from "./lib/cultures.mjs";
-import { WEAPONS, SHIELDS, ARMOR, GEAR, denariToDisplay } from "./lib/equipment.mjs";
-import { allSkillIds, BASE_SKILLS, CETO_COST, mestiereCost } from "./lib/actor-core.mjs";
-import { computeCreationSkillState, computeProgressionSummary } from "./lib/progression.mjs";
+import { CULTURE_DEFS, CULTURE_IDS, getCultureAllowedValori } from "@federicomorando/sword-engine/data/cultures";
+import { WEAPONS, SHIELDS, ARMOR, GEAR, denariToDisplay } from "@federicomorando/sword-engine/data/equipment";
+import { allSkillIds, BASE_SKILLS, CETO_FAMA, mestiereCost } from "@federicomorando/sword-engine/constants";
+import { computeCreationSkillState, computeProgressionSummary } from "@federicomorando/sword-engine/progression";
 import { exportFoundryJSON, exportCharacterPDF } from "./export/exporters.mjs";
 import {
   STEP_LABELS,
@@ -277,7 +277,7 @@ function derived() {
     spirito,
     fatica: state.chars.fortitudo + 2,
     ferite: state.chars.fortitudo + 2,
-    fama: CETO_COST[state.ceto] + (hasEventType("nomea") ? 1 : 0)
+    fama: CETO_FAMA[state.ceto] + (hasEventType("nomea") ? 1 : 0)
   };
 }
 
@@ -288,7 +288,7 @@ function retaggioTotal() {
 }
 
 function retaggioAvailable() {
-  return Math.max(0, retaggioTotal() - CETO_COST[state.ceto]);
+  return Math.max(0, retaggioTotal() - CETO_FAMA[state.ceto]);
 }
 
 function totalValoriPoints() {
@@ -606,7 +606,7 @@ function renderStepContent(allowedValori, allSkills) {
             ([id, label]) => `
           <button class="card ${state.ceto === id ? "selected" : ""}" data-action="set-ceto" data-ceto="${id}">
             <strong>${label}</strong>
-            <span>Costo retaggio/fama: ${CETO_COST[id]}</span>
+            <span>Costo retaggio/fama: ${CETO_FAMA[id]}</span>
           </button>
         `
           )

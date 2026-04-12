@@ -1,6 +1,6 @@
-import { allSkillIds } from "../lib/actor-core.mjs";
-import { computeCreationSkillState, computeProgressionSummary } from "../lib/progression.mjs";
-import { WEAPONS, SHIELDS, ARMOR, GEAR } from "../lib/equipment.mjs";
+import { allSkillIds } from "@federicomorando/sword-engine/constants";
+import { computeCreationSkillState, computeProgressionSummary } from "@federicomorando/sword-engine/progression";
+import { WEAPONS, SHIELDS, ARMOR, GEAR } from "@federicomorando/sword-engine/data/equipment";
 
 const EVENT_LABELS = {
   addestramento_marziale: "Addestramento marziale",
