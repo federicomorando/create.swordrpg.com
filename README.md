@@ -1,32 +1,47 @@
-# SwORD Character Lab (GitHub Pages)
+# SwORD Character Lab
 
-Browser-only character creation prototype for **Il Tempo della Spada**.
+Browser-based character creation for **Il Tempo della Spada**.
 
-Current version: `1.5.0` (see `VERSION` and `docs/RELEASE_1.5.md`).
+Live at: [create.swordrpg.com](https://create.swordrpg.com)
+
+Current version: `1.6.0`
 
 ## Run locally
 
 ```bash
-python3 -m http.server 4173
-# then open http://localhost:4173
+npm install
+npm run dev       # Vite dev server with hot reload
+npm run build     # Production build to dist/
+npm run preview   # Preview the production build
 ```
 
-## Features currently implemented
-- 9-step wizard structure inspired by Foundry creation flow.
-- Local persistence (`localStorage`).
-- Final progression step for PE spending and automatic Talenti unlock/progress.
-- JSON import (Foundry-like actor) to continue character progression/editing.
-- Foundry-like JSON export.
-- PDF export using Foundry mapper + field map + template PDF.
+## Architecture
 
-## Maintenance
-Use the drift checker to keep parity with Foundry:
+The site is built with [Vite](https://vite.dev) and imports game rules
+from [`@federicomorando/sword-engine`](https://github.com/federicomorando/sword-engine)
+via npm. PDF export uses [`pdf-lib`](https://pdf-lib.js.org/).
 
-```bash
-./scripts/check-foundry-sync.sh
-```
+Deployment: GitHub Pages via `.github/workflows/pages.yml` (builds with
+Vite, deploys `dist/`).
 
-Detailed guide: `docs/FOUNDRY_SYNC.md`.
-Step-by-step constraints: `docs/STEP_CONSTRAINTS.md`.
-Cache busting guide: `docs/CACHE_BUSTING.md`.
-Release notes: `docs/RELEASE_1.5.md` (historical: `docs/RELEASE_1.0.md`).
+## Features
+
+- 9-step character creation wizard
+- Local persistence (`localStorage`)
+- PE (Progression Experiences) spending with automatic talent unlock
+- JSON import (Foundry-compatible actor) to continue character editing
+- Foundry-compatible JSON export
+- PDF export using field-mapped template
+
+## Related projects
+
+- [sword-engine](https://github.com/federicomorando/sword-engine) — game rules library (npm dependency)
+- [GM-MCP](https://github.com/federicomorando/gm-mcp) — AI game-master platform with Character MCP
+- [Foundry VTT system](https://github.com/federicomorando/foundry) — the VTT implementation
+
+## Documentation
+
+- `docs/STEP_CONSTRAINTS.md` — step-by-step creation constraints
+- `docs/FOUNDRY_SYNC.md` — historical Foundry sync notes (now superseded by sword-engine npm imports)
+- `docs/CACHE_BUSTING.md` — now handled by Vite content hashing
+- `docs/RELEASE_1.5.md`, `docs/RELEASE_1.0.md` — historical release notes
