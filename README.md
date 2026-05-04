@@ -21,6 +21,19 @@ The site is built with [Vite](https://vite.dev) and imports game rules
 from [`@federicomorando/sword-engine`](https://github.com/federicomorando/sword-engine)
 via npm. PDF export uses [`pdf-lib`](https://pdf-lib.js.org/).
 
+Source is split into focused modules:
+
+| File | Purpose |
+|------|---------|
+| `src/main.js` | Entry point: event delegation on `#app` |
+| `src/state.js` | State singleton, load/save, normalization |
+| `src/data/constants.js` | Game data (event defs, starting wealth) |
+| `src/helpers.js` | Computation helpers (derived stats, skill costs, progression) |
+| `src/validation.js` | Step validation rules |
+| `src/render.js` | Full UI rendering (all 9 steps) |
+| `src/events.js` | User interaction handlers |
+| `src/export/` | Foundry JSON and PDF export |
+
 Deployment: GitHub Pages via `.github/workflows/pages.yml` (builds with
 Vite, deploys `dist/`).
 
