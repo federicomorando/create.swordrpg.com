@@ -1,5 +1,6 @@
-import { allSkillIds } from "@federicomorando/sword-engine/constants";
-import { computeCreationSkillState, computeProgressionSummary } from "@federicomorando/sword-engine/progression";
+import { allSkillIds, CETO_FAMA } from "@federicomorando/sword-engine/constants";
+import { computeCreationSkillState, computeProgressionSummary, computeRetaggioSlots } from "@federicomorando/sword-engine/progression";
+import { deriveCharacter } from "@federicomorando/sword-engine/derivation";
 import { WEAPONS, SHIELDS, ARMOR, GEAR } from "@federicomorando/sword-engine/data/equipment";
 
 const EVENT_LABELS = {
@@ -37,8 +38,6 @@ const EVENT_DEFS = {
   istinto: { effect: "riflessi_bonus", bonus: 1 }
 };
 
-const CETO_FAMA = { umile: 0, popolano: 1, borghese: 2, nobile: 3 };
-
 function formatEvent(eventObj) {
   if (!eventObj || typeof eventObj !== "object") return "";
   const base = EVENT_LABELS[eventObj.type] ?? eventObj.type ?? "";
@@ -51,11 +50,6 @@ function formatEvent(eventObj) {
 
 function hasCultureTrait(state, id) {
   return state.cultureTrait1 === id || state.cultureTrait2 === id;
-}
-
-function mod(score) {
-  const d = Number(score) - 7;
-  return d > 0 ? Math.ceil(d / 2) : Math.floor(d / 2);
 }
 
 function denariToMoney(total) {
@@ -239,46 +233,6 @@ export function stateToFoundryActor(state) {
     if (def.effect === "riflessi_bonus") riflessiBonus += def.bonus || 0;
   }
 
-  const anticaBonus = hasCultureTrait(state, "antica") ? 1 : 0;
-  const spiritualeBonus = hasCultureTrait(state, "spirituale") ? 4 : 0;
-  const talentCharBonuses = prog.talentCharBonuses || {};
-  const ec = {
-    fortitudo: state.chars.fortitudo + (talentCharBonuses.fortitudo || 0),
-    celeritas: state.chars.celeritas + (talentCharBonuses.celeritas || 0),
-    gratia: state.chars.gratia + (talentCharBonuses.gratia || 0),
-    mens: state.chars.mens + (talentCharBonuses.mens || 0),
-    prudentia: state.chars.prudentia + (talentCharBonuses.prudentia || 0),
-    audacia: state.chars.audacia + (talentCharBonuses.audacia || 0)
-  };
-
-  let spirMax = ec.audacia + mod(ec.audacia) + (prog.skills.volonta?.grade || 0) + spiritoBonus + anticaBonus + spiritualeBonus;
-  for (const sf of prog.talentSpiritFormulas || []) {
-    if (sf.mode === "addScore") spirMax += ec[sf.characteristic] || 0;
-    else if (sf.mode === "addModifier") {
-      for (const charKey of sf.characteristics || []) spirMax += mod(ec[charKey] || 0);
-    }
-  }
-
-  const fatMax = ec.fortitudo + ec.audacia + (prog.talentResourceBonuses?.fatica || 0);
-  const ferMax = ec.fortitudo + mod(ec.fortitudo) + (prog.skills.forza?.grade || 0) + (prog.talentResourceBonuses?.ferite || 0);
-  const rifMax = ec.prudentia + mod(ec.celeritas) + riflessiBonus + (prog.talentResourceBonuses?.riflessi || 0);
-
-  const hasMilitare = hasCultureTrait(state, "militare");
-  const items = cartToItems(state.equipment.cart || [], { hasMilitare });
-  if (retaggioFlags.cimelio) applyCimelioQuality(items, retaggioFlags.cimelio);
-
-  const spent = items.reduce((sum, item) => {
-    const qty = Number(item.system?.quantity ?? 1);
-    const unit = Number(item.system?.costDenari ?? 0);
-    return sum + qty * unit;
-  }, 0);
-  const remainingDenari = Math.max(0, (state.equipment.wealth || 0) - spent);
-
-  const retaggioTotal = Math.max(
-    0,
-    3 + mod(state.chars.gratia) + (state.retaggio.tentazione ? 1 : 0) + (hasCultureTrait(state, "intraprendente") ? 1 : 0)
-  );
-
   const skills = Object.fromEntries(
     Object.entries(prog.skills).map(([id, data]) => [
       id,
@@ -293,6 +247,43 @@ export function stateToFoundryActor(state) {
     ])
   );
 
+  const derived = deriveCharacter({
+    characteristics: state.chars,
+    skills,
+    resources: {
+      spirito: { value: 0, max: 0 },
+      fatica: { value: 0, max: 0 },
+      ferite: { value: 0, max: 0 },
+      riflessi: { value: 0, max: 0 },
+    },
+    woundLevels: { graffi: 0, leggere: 0, gravi: 0, critiche: 0, mortali: 0 },
+    valori: valueUpdates,
+    culture: { trait1: state.cultureTrait1 || "", trait2: state.cultureTrait2 || "" },
+    retaggio: { spiritoBonus, riflessiBonus, indomito: retaggioFlags.indomito },
+    pe: { total: prog.peTotal, companionSpent: 0 },
+    ceto: state.ceto,
+  });
+
+  const ec = derived.effectiveCharacteristics;
+  const talentCharBonuses = derived.talentCharBonuses;
+
+  const hasMilitare = hasCultureTrait(state, "militare");
+  const items = cartToItems(state.equipment.cart || [], { hasMilitare });
+  if (retaggioFlags.cimelio) applyCimelioQuality(items, retaggioFlags.cimelio);
+
+  const spent = items.reduce((sum, item) => {
+    const qty = Number(item.system?.quantity ?? 1);
+    const unit = Number(item.system?.costDenari ?? 0);
+    return sum + qty * unit;
+  }, 0);
+  const remainingDenari = Math.max(0, (state.equipment.wealth || 0) - spent);
+
+  const { total: retaggioTotal } = computeRetaggioSlots(state.chars.gratia, {
+    hasTentazione: !!state.retaggio.tentazione,
+    hasIntraprendente: hasCultureTrait(state, "intraprendente"),
+    ceto: state.ceto,
+  });
+
   return {
     name: state.name || "Avventuriero",
     type: "character",
@@ -304,10 +295,10 @@ export function stateToFoundryActor(state) {
       talentCharBonuses,
       skills,
       resources: {
-        riflessi: { value: rifMax, max: rifMax },
-        spirito: { value: spirMax, max: spirMax },
-        fatica: { value: fatMax, max: fatMax },
-        ferite: { value: ferMax, max: ferMax }
+        riflessi: { value: derived.resources.riflessi.max, max: derived.resources.riflessi.max },
+        spirito: { value: derived.resources.spirito.max, max: derived.resources.spirito.max },
+        fatica: { value: derived.resources.fatica.max, max: derived.resources.fatica.max },
+        ferite: { value: derived.resources.ferite.max, max: derived.resources.ferite.max }
       },
       fama: (CETO_FAMA[state.ceto] ?? 0) + famaBonus,
       pe: { total: prog.peTotal, spent: prog.peSpent, available: prog.peAvailable },
