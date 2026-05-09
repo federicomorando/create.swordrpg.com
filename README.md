@@ -10,10 +10,15 @@ Current version: `1.6.0`
 
 ```bash
 npm install
-npm run dev       # Vite dev server with hot reload
-npm run build     # Production build to dist/
-npm run preview   # Preview the production build
+npm run dev         # Vite dev server with hot reload
+npm run build       # Production build to dist/
+npm run preview     # Preview the production build
+npm run test:smoke  # Playwright smoke test (requires dev server running)
 ```
+
+The smoke test (28 checks) verifies all 9 creation steps render correctly,
+navigation works, and export/import buttons are present. Use `--headed` to
+watch the browser, `--port 5174` if the dev server is on a different port.
 
 ## Architecture
 
