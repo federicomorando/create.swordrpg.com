@@ -87,19 +87,20 @@ export function syncRetaggioState() {
 }
 
 export function derived() {
-  let spirito = state.chars.audacia + 1;
+  const mod = characteristicMod;
+  let spirito = state.chars.audacia + mod(state.chars.audacia);
   if (hasCultureTrait("antica")) spirito += 1;
   if (hasCultureTrait("spirituale")) spirito += 4;
   if (hasEventType("percorso_spirituale")) spirito += 3;
 
-  let riflessi = modifier(state.chars.celeritas) + 3;
+  let riflessi = state.chars.prudentia + mod(state.chars.celeritas);
   if (hasEventType("istinto")) riflessi += 1;
 
   return {
     riflessi,
     spirito,
-    fatica: state.chars.fortitudo + 2,
-    ferite: state.chars.fortitudo + 2,
+    fatica: state.chars.fortitudo + state.chars.audacia,
+    ferite: state.chars.fortitudo + mod(state.chars.fortitudo),
     fama: CETO_FAMA[state.ceto] + (hasEventType("nomea") ? 1 : 0)
   };
 }

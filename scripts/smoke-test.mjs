@@ -27,12 +27,17 @@ function fail(name, err) {
   console.log(`  ✗ ${name}: ${err.message ?? err}`);
 }
 
+function assert(cond, name, detail) {
+  if (cond) ok(name);
+  else fail(name, detail);
+}
+
 async function stepTitle(page) {
   return (await page.locator("h2").first().textContent()).trim();
 }
 
-async function forceStep(page, n) {
-  await page.evaluate((step) => {
+async function forceStep(page, n, stateOverrides = {}) {
+  await page.evaluate(({ step, overrides }) => {
     const KEY = "swordrpg-character-v1";
     const raw = localStorage.getItem(KEY);
     const state = raw && raw !== "undefined" ? JSON.parse(raw) : {
@@ -48,8 +53,9 @@ async function forceStep(page, n) {
     state.step = step;
     if (!state.progression) state.progression = { source: "creation", peTotal: 0, baseSkillGrades: {}, currentSkillGrades: {} };
     state.progression.source = "import";
+    Object.assign(state, overrides);
     localStorage.setItem(KEY, JSON.stringify(state));
-  }, n);
+  }, { step: n, overrides: stateOverrides });
   await page.reload();
   await page.waitForSelector("#app", { timeout: 10000 });
   await page.waitForTimeout(500);
@@ -83,7 +89,7 @@ async function run() {
   await page.waitForTimeout(300);
   ok("Selected ceto: borghese");
 
-  // ── Step 2: Caratteristiche (via next-step — step 1 always passes validation) ──
+  // ── Step 2: Caratteristiche ──
   await page.click('[data-action="next-step"]');
   await page.waitForTimeout(500);
   console.log("\nStep 2: Caratteristiche...");
@@ -99,76 +105,183 @@ async function run() {
   await page.waitForTimeout(300);
   ok("Set character name");
 
-  // ── Steps 3–9: force navigation via localStorage + reload ──
-  const stepChecks = [
-    [3, "Cultura", async () => {
-      const selects = await page.locator("select").count();
-      if (selects >= 1) ok(`  ${selects} culture select(s)`);
-      else fail("  Culture selects", "none");
-    }],
-    [4, "Statistiche derivate", async () => {
-      const content = await page.locator(".step-content, main").first().textContent();
-      if (content.length > 50) ok("  Derived stats displayed");
-      else fail("  Derived content", "too short");
-    }],
-    [5, "Abilit", async () => {
-      const selects = await page.locator("select").count();
-      if (selects >= 1) ok(`  ${selects} skill select(s)`);
-      else fail("  Skill selects", "none");
-    }],
-    [6, "Valori", async () => {
-      const btns = await page.locator('[data-action]').count();
-      if (btns >= 1) ok("  Valore controls present");
-      else fail("  Valore controls", "none");
-    }],
-    [7, "Retaggio", async () => {
-      const content = await page.locator("#app").textContent();
-      if (content.includes("Retaggio") || content.includes("retaggio")) ok("  Retaggio content rendered");
-      else fail("  Retaggio content", "missing");
-    }],
-    [8, "Equipaggiamento", async () => {
-      const content = await page.locator("#app").textContent();
-      if (content.includes("Ricchezza") || content.includes("ricchezza") || content.includes("Equipaggiamento"))
-        ok("  Equipment content rendered");
-      else fail("  Equipment content", "missing");
-    }],
-    [9, "Progressione", async () => {
-      const content = await page.locator("#app").textContent();
-      if (content.includes("PE") || content.includes("Progressione"))
-        ok("  Progression content rendered");
-      else fail("  Progression content", "missing");
-    }],
-  ];
+  // Step 2: verify modifier display
+  // Default chars are all 7, characteristicMod(7) = 0
+  const modTexts = await page.locator("div.row em").allTextContents();
+  const allModZero = modTexts.every(m => m.trim() === "mod +0");
+  assert(allModZero, "All modifiers show +0 for score 7", `got: ${modTexts.join(", ")}`);
 
-  for (const [n, label, check] of stepChecks) {
-    await forceStep(page, n);
-    console.log(`\nStep ${n}: ${label}...`);
-    const t = await stepTitle(page);
-    if (t.startsWith(label)) ok(`Step ${n} rendered`);
-    else fail(`Step ${n} title`, `got "${t}"`);
-    await check();
-  }
+  // Step 2: increment a characteristic and verify modifier updates
+  await page.click('[data-action="char-inc"][data-char="fortitudo"]');
+  await page.waitForTimeout(300);
+  const fortRow = page.locator('div.row:has([data-char="fortitudo"])');
+  const fortVal = await fortRow.locator("strong").textContent();
+  const fortMod = await fortRow.locator("em").textContent();
+  assert(fortVal.trim() === "8", "Fortitudo incremented to 8", `got ${fortVal}`);
+  assert(fortMod.trim() === "mod +1", "Fortitudo modifier updated to +1", `got ${fortMod}`);
 
-  // ── Navigation: go back to step 1 ──
+  // Step 2: verify points counter
+  // 5 × 7 + 8 = 43
+  const pointsText = await page.locator("p strong").first().textContent();
+  assert(pointsText.trim() === "43", "Points used: 43/54", `got ${pointsText}`);
+
+  // ── Step 3: Cultura ──
+  console.log("\nStep 3: Cultura...");
+  await forceStep(page, 3);
+  const t3 = await stepTitle(page);
+  assert(t3 === "Cultura", "Step 3 rendered", `got "${t3}"`);
+  const selects3 = await page.locator("select").count();
+  assert(selects3 >= 2, `${selects3} culture select(s)`, "too few");
+
+  // ── Step 4: Derived stats with known values ──
+  console.log("\nStep 4: Statistiche derivate...");
+  // Set known characteristics: fortitudo=10, celeritas=8, prudentia=9, audacia=12, ceto=borghese
+  // Expected: riflessi = prudentia + mod(celeritas) = 9 + 1 = 10
+  //           spirito = audacia + mod(audacia) = 12 + 3 = 15
+  //           fatica = fortitudo + audacia = 10 + 12 = 22
+  //           ferite = fortitudo + mod(fortitudo) = 10 + 2 = 12
+  //           fama = CETO_FAMA[borghese] + 0 = 2
+  await forceStep(page, 4, {
+    ceto: "borghese",
+    chars: { fortitudo: 10, celeritas: 8, gratia: 9, mens: 9, prudentia: 9, audacia: 12 },
+  });
+  const t4 = await stepTitle(page);
+  assert(t4.startsWith("Statistiche derivate"), "Step 4 rendered", `got "${t4}"`);
+
+  const statValues = await page.evaluate(() => {
+    const items = [...document.querySelectorAll("ul.list li")];
+    const out = {};
+    for (const li of items) {
+      const text = li.textContent.trim();
+      const strong = li.querySelector("strong");
+      if (!strong) continue;
+      const val = Number(strong.textContent.trim());
+      if (text.startsWith("Riflessi")) out.riflessi = val;
+      if (text.startsWith("Spirito")) out.spirito = val;
+      if (text.startsWith("Fatica")) out.fatica = val;
+      if (text.startsWith("Ferite")) out.ferite = val;
+      if (text.startsWith("Fama")) out.fama = val;
+    }
+    return out;
+  });
+  assert(statValues.riflessi === 10, `Riflessi = 10 (pru9+mod(cel8))`, `got ${statValues.riflessi}`);
+  assert(statValues.spirito === 15, `Spirito = 15 (aud12+mod(aud12))`, `got ${statValues.spirito}`);
+  assert(statValues.fatica === 22, `Fatica = 22 (fort10+aud12)`, `got ${statValues.fatica}`);
+  assert(statValues.ferite === 12, `Ferite = 12 (fort10+mod(fort10))`, `got ${statValues.ferite}`);
+  assert(statValues.fama === 2, `Fama = 2 (borghese)`, `got ${statValues.fama}`);
+
+  // Step 4: verify with antica culture bonus (+1 spirito)
+  await forceStep(page, 4, {
+    ceto: "borghese",
+    chars: { fortitudo: 10, celeritas: 8, gratia: 9, mens: 9, prudentia: 9, audacia: 12 },
+    cultureTrait1: "antica",
+  });
+  const spiritoAntica = await page.evaluate(() => {
+    const li = [...document.querySelectorAll("ul.list li")].find(l => l.textContent.startsWith("Spirito"));
+    return Number(li?.querySelector("strong")?.textContent?.trim());
+  });
+  assert(spiritoAntica === 16, `Spirito with antica = 16 (12+mod(12)+1)`, `got ${spiritoAntica}`);
+
+  // Step 4: verify with nobile ceto (fama = 3)
+  await forceStep(page, 4, {
+    ceto: "nobile",
+    chars: { fortitudo: 9, celeritas: 9, gratia: 9, mens: 9, prudentia: 9, audacia: 9 },
+  });
+  const famaNobile = await page.evaluate(() => {
+    const li = [...document.querySelectorAll("ul.list li")].find(l => l.textContent.startsWith("Fama"));
+    return Number(li?.querySelector("strong")?.textContent?.trim());
+  });
+  assert(famaNobile === 3, `Fama nobile = 3`, `got ${famaNobile}`);
+
+  // ── Step 5: Abilita ──
+  console.log("\nStep 5: Abilita...");
+  await forceStep(page, 5);
+  const t5 = await stepTitle(page);
+  assert(t5.startsWith("Abilit"), "Step 5 rendered", `got "${t5}"`);
+  const mestChips = await page.locator('[data-action="toggle-mestiere"]').count();
+  assert(mestChips >= 5, `${mestChips} mestiere skill chips`, "too few");
+  const grade3Selects = await page.locator('[data-change="set-grade3"]').count();
+  assert(grade3Selects === 2, `${grade3Selects} grade 3 slots`, `expected 2`);
+  const grade2Selects = await page.locator('[data-change="set-grade2"]').count();
+  assert(grade2Selects === 8, `${grade2Selects} grade 2 slots`, `expected 8`);
+
+  // ── Step 6: Valori ──
+  console.log("\nStep 6: Valori...");
+  await forceStep(page, 6);
+  const t6 = await stepTitle(page);
+  assert(t6 === "Valori", "Step 6 rendered", `got "${t6}"`);
+  const valInc = await page.locator('[data-action="val-inc"]').count();
+  assert(valInc >= 6, `${valInc} valore increment buttons`, "too few");
+  const valPointsText = await page.evaluate(() => {
+    const ps = [...document.querySelectorAll("p")];
+    const p = ps.find(p => p.textContent.includes("Punti assegnati"));
+    return p?.textContent?.trim() ?? "";
+  });
+  assert(valPointsText.includes("0/3"), "Valore points 0/3", `got "${valPointsText}"`);
+
+  // ── Step 7: Retaggio ──
+  console.log("\nStep 7: Retaggio...");
+  await forceStep(page, 7);
+  const t7 = await stepTitle(page);
+  assert(t7 === "Retaggio", "Step 7 rendered", `got "${t7}"`);
+  const eventChips = await page.locator('[data-action="toggle-event"]').count();
+  assert(eventChips >= 10, `${eventChips} event type chips`, "too few");
+  const tentSelect = await page.locator('[data-change="set-tentazione"]').count();
+  assert(tentSelect === 1, "Tentazione select present", "missing");
+
+  // ── Step 8: Equipaggiamento ──
+  console.log("\nStep 8: Equipaggiamento...");
+  await forceStep(page, 8);
+  const t8 = await stepTitle(page);
+  assert(t8 === "Equipaggiamento", "Step 8 rendered", `got "${t8}"`);
+  const content8 = await page.locator("#app").textContent();
+  assert(
+    content8.includes("Ricchezza") || content8.includes("ricchezza"),
+    "Wealth display present",
+    "missing"
+  );
+
+  // ── Step 9: Progressione ──
+  console.log("\nStep 9: Progressione...");
+  await forceStep(page, 9);
+  const t9 = await stepTitle(page);
+  assert(t9.startsWith("Progressione"), "Step 9 rendered", `got "${t9}"`);
+  const content9 = await page.locator("#app").textContent();
+  assert(content9.includes("PE"), "PE display present", "missing");
+
+  // ── Export: verify JSON export produces valid data ──
+  console.log("\nExport validation...");
+  await forceStep(page, 9, {
+    name: "ExportTest",
+    ceto: "borghese",
+    chars: { fortitudo: 10, celeritas: 8, gratia: 9, mens: 9, prudentia: 9, audacia: 12 },
+  });
+  assert(
+    (await page.locator('[data-action="export-json"]').count()) > 0,
+    "Export JSON button",
+    "not found"
+  );
+  assert(
+    (await page.locator('[data-action="export-pdf"]').count()) > 0,
+    "Export PDF button",
+    "not found"
+  );
+  assert(
+    (await page.locator('[data-action="import-json"]').count()) > 0,
+    "Import JSON button",
+    "not found"
+  );
+
+  // ── Navigation ──
   console.log("\nNavigation...");
   await forceStep(page, 1);
   if ((await stepTitle(page)) === "Ceto") ok("Navigate to step 1");
   else fail("Navigate to step 1", await stepTitle(page));
 
-  // prev-step on step 1 should stay on step 1
   await page.click('[data-action="prev-step"]', { force: true });
   await page.waitForTimeout(300);
   if ((await stepTitle(page)) === "Ceto") ok("prev-step on step 1 stays");
   else fail("prev-step boundary", await stepTitle(page));
-
-  // ── Export buttons ──
-  console.log("\nExport...");
-  if ((await page.locator('[data-action="export-json"]').count()) > 0) ok("Export JSON button");
-  else fail("Export JSON", "not found");
-  if ((await page.locator('[data-action="export-pdf"]').count()) > 0) ok("Export PDF button");
-  else fail("Export PDF", "not found");
-  if ((await page.locator('[data-action="import-json"]').count()) > 0) ok("Import JSON button");
-  else fail("Import JSON", "not found");
 
   // ── Reset ──
   console.log("\nReset...");

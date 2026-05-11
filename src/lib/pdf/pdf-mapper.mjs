@@ -3,6 +3,8 @@
  * ESM, no Node.js dependencies. Maps actor data to PDF field values.
  */
 
+import { characteristicMod } from "@federicomorando/sword-engine/constants";
+
 function get(obj, ...keys) {
   let cur = obj;
   for (const k of keys) {
@@ -14,12 +16,7 @@ function get(obj, ...keys) {
 
 function modifier(score) {
   if (score == null) return 0;
-  if (score <= 6) return -1;
-  if (score === 7) return 0;
-  if (score <= 9) return 1;
-  if (score <= 11) return 2;
-  if (score <= 13) return 3;
-  return 3 + Math.floor((score - 13) / 2);
+  return characteristicMod(score);
 }
 
 function segmented(total, buckets) {
