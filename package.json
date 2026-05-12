@@ -10,7 +10,7 @@
     "test:smoke": "node scripts/smoke-test.mjs"
   },
   "dependencies": {
-    "@federicomorando/sword-engine": "^1.5.0",
+    "@federicomorando/sword-engine": "^1.5.1",
     "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
